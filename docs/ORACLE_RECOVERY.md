@@ -1,6 +1,22 @@
-# Recuperación de instalación incompleta en Oracle Cloud
+<div align="center">
 
-Este flujo está pensado para una VPS donde el proyecto y systemd ya existen, pero `mcserver doctor` muestra estados como:
+# ☁️ Recuperación en Oracle Cloud
+
+**Repara una instalación incompleta sin reinstalar ni borrar tus datos.**
+
+![Oracle](https://img.shields.io/badge/Oracle-Cloud-F80000?style=flat-square&logo=oracle&logoColor=white)
+![Ubuntu](https://img.shields.io/badge/Ubuntu-VPS-E95420?style=flat-square&logo=ubuntu&logoColor=white)
+![iptables](https://img.shields.io/badge/Firewall-iptables%20%7C%20UFW-7B61FF?style=flat-square)
+
+[⬅️ Documentación](README.md) · [🏠 Proyecto](../README.md)
+
+</div>
+
+---
+
+## 🩺 ¿Cuándo usar esta guía?
+
+Cuando `mcserver doctor` o `mcserver status` muestre una instalación parcial, por ejemplo:
 
 ```text
 BDS: none
@@ -10,105 +26,100 @@ nexora-bedwars: faltante
 nexora-skywars: faltante
 ```
 
-No hace falta reinstalar ni borrar `/opt/bedrock-network`.
+> [!IMPORTANT]
+> **No reinstales y no borres `/opt/bedrock-network`.** El bootstrap está diseñado para completar una instalación existente y preservar los datos persistentes.
 
-## Recuperación
+## ♻️ Recuperación principal
 
 ```bash
 sudo mcserver update project
 sudo mcserver bootstrap
 ```
 
-`bootstrap` es idempotente y realiza:
+`bootstrap` comprueba o completa:
 
-1. normalización de permisos del código;
-2. instalación/comprobación de dependencias;
-3. instalación de unidades systemd;
-4. firewall local;
-5. BDS oficial para Lobby/Survival;
-6. PowerNukkitX para PvP/BedWars/SkyWars;
-7. compilación e instalación de los tres plugins Nexora;
-8. preparación del mundo del Lobby y su behavior pack;
-9. arranque de Lobby, PvP, BedWars y SkyWars;
-10. arranque de Survival solo si el mundo ya fue importado;
-11. validación de plugins, minijuegos, puertos y seguridad del Survival.
+- permisos y dependencias;
+- unidades systemd;
+- firewall local;
+- BDS para Lobby/Survival;
+- PowerNukkitX para minijuegos;
+- plugins Nexora;
+- addon y mundo del Lobby;
+- PvP, BedWars y SkyWars;
+- servicios web;
+- sockets locales y seguridad de Survival.
 
-## Firewall de la imagen Oracle
+## 🧱 Firewall local de Oracle
 
-Algunas imágenes de Oracle traen una regla `REJECT` al final de `INPUT` aunque UFW esté desactivado. `mcserver firewall apply` crea una cadena propia llamada:
+Algunas imágenes de Oracle incluyen un `REJECT` al final de `INPUT` aunque UFW esté desactivado.
+
+Nexora crea una cadena administrada:
 
 ```text
 BEDROCK-NETWORK
 ```
 
-y coloca el salto a esa cadena antes del `REJECT` existente.
+Permisos administrados:
 
-Permite únicamente:
+| Protocolo | Puerto | Uso |
+|---|---:|---|
+| TCP | `80` | HTTP / Certbot / redirección |
+| TCP | `443` | HTTPS |
+| UDP | `19132` | Lobby |
+| UDP | `19133` | Survival |
+| UDP | `19134` | PvP |
+| UDP | `19135` | BedWars |
+| UDP | `19136` | SkyWars |
 
-```text
-TCP 80
-TCP 443
-UDP 19132
-UDP 19133
-UDP 19134
-UDP 19135
-UDP 19136
-```
-
-No modifica TCP/22.
-
-Si UFW está activo, se usan reglas UFW en lugar de la cadena administrada directamente.
-
-Las reglas iptables se guardan mediante `netfilter-persistent` para sobrevivir reinicios.
-
-Estado:
+Nexora **no modifica TCP/22**.
 
 ```bash
 sudo mcserver firewall status
-```
-
-Aplicar/reparar:
-
-```bash
 sudo mcserver firewall apply
 ```
 
-## Security List / NSG de Oracle
+Las reglas se persisten con `netfilter-persistent` cuando UFW no está activo.
 
-El firewall local no puede cambiar las reglas de red de Oracle Cloud. En la consola de Oracle, la VNIC/subred debe permitir también:
+## 🌍 Security List / NSG
+
+> [!WARNING]
+> El firewall del sistema operativo y el firewall de Oracle Cloud son capas distintas.
+
+En la consola de Oracle debes permitir también:
 
 ```text
 TCP 80,443
 UDP 19132-19136
 ```
 
-No es necesario publicar TCP/8080. Nginx recibe tráfico en 80/443 y lo reenvía internamente al backend web.
+No necesitas publicar `TCP/8080`: Nginx recibe `80/443` y reenvía internamente al backend.
 
-## Survival
+## 🌲 Survival
 
-Si existe:
+Mientras exista:
 
 ```text
 /opt/bedrock-network/state/survival-pending-import
 ```
 
-`bootstrap` mantiene Survival detenido. No genera un mundo vacío.
+Survival permanece detenido para evitar crear un mundo vacío accidentalmente.
 
-Después de configurar HTTPS puedes importar desde Android en:
-
-```text
-https://minecraftnexora.duckdns.org/admin.html
-```
-
-O desde terminal:
+Importación CLI:
 
 ```bash
 sudo mcserver import-survival /ruta/Mundo.zip
 ```
 
-## Validación final
+O desde el panel HTTPS:
+
+```text
+https://TU_DOMINIO/admin.html
+```
+
+## ✅ Validación final
 
 ```bash
+sudo mcserver status
 sudo mcserver plugins doctor
 sudo mcserver minigames status
 sudo mcserver firewall status
@@ -116,7 +127,7 @@ sudo mcserver network verify
 sudo mcserver doctor
 ```
 
-El estado esperado antes de importar Survival es:
+Estado esperado antes de importar Survival:
 
 ```text
 Lobby      ONLINE
@@ -126,3 +137,27 @@ BedWars    ONLINE
 SkyWars    ONLINE
 Web        active
 ```
+
+## 🔍 Diagnóstico adicional
+
+```bash
+sudo mcserver logs lobby
+sudo mcserver logs pvp
+sudo mcserver logs bedwars
+sudo mcserver logs skywars
+```
+
+Y para ver listeners locales:
+
+```bash
+sudo ss -lunp
+sudo ss -ltnp
+```
+
+---
+
+<div align="center">
+
+**Oracle Cloud + Nexora:** firewall local administrado, reglas cloud explícitas y recuperación idempotente.
+
+</div>
