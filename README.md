@@ -176,7 +176,7 @@ Cada push/PR valida:
 
 - [`docs/ADMIN_GUIDE.md`](docs/ADMIN_GUIDE.md): instalación, actualización, rollback, web y mantenimiento.
 - [`docs/SURVIVAL_IMPORT.md`](docs/SURVIVAL_IMPORT.md): migración del mundo.
-- [`docs/LOBBY_ISLAND.md`](docs/LOBBY_ISLAND.md): isla flotante del hub.
+- [`docs/LOBBY_SETUP.md`](docs/LOBBY_SETUP.md): isla flotante y preparación del hub.
 - [`docs/PORTS.md`](docs/PORTS.md): puertos.
 - [`docs/NEXT_PHASE.md`](docs/NEXT_PHASE.md): minijuegos y siguientes fases.
 
