@@ -42,7 +42,7 @@
       "source_type": "git-gradle",
       "ref": "611466227c6a6435f527dc970d241f580dea090d",
       "build": "jar",
-      "artifact_glob": "build/libs/*.jar",
+      "artifact_glob": "build/*.jar",
       "license": "GPL-3.0-only",
       "redistribute": false,
       "auto_install": true,
