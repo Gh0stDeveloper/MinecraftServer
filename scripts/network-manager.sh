@@ -20,15 +20,15 @@ resolved_ipv4(){ getent ahostsv4 "$1" 2>/dev/null | awk '{print $1}' | sort -u; 
 domain_ok(){ [[ -n "${PUBLIC_DOMAIN:-}" && -n "${PUBLIC_IP:-}" ]] && resolved_ipv4 "$PUBLIC_DOMAIN" | grep -Fxq "$PUBLIC_IP"; }
 
 apply_host(){
-  local host="$1"
-  sed -i "s|^PUBLIC_HOST=.*|PUBLIC_HOST=$host|" "$CONFIG_FILE"
+  local host="$1" level was_active=0
+  systemctl is-active --quiet bedrock@lobby.service 2>/dev/null && was_active=1 || true
+  if grep -q '^PUBLIC_HOST=' "$CONFIG_FILE"; then sed -i "s|^PUBLIC_HOST=.*|PUBLIC_HOST=$host|" "$CONFIG_FILE"; else printf '\nPUBLIC_HOST=%s\n' "$host" >> "$CONFIG_FILE"; fi
   source_config
   "$APP_DIR/scripts/render-lobby-config.sh"
-  local level
   level="$(awk -F= '$1=="level-name"{print substr($0,index($0,"=")+1)}' "$INSTANCES_DIR/lobby/server.properties" 2>/dev/null || true)"
   if [[ -n "$level" && -d "$INSTANCES_DIR/lobby/worlds/$level" ]]; then
     "$APP_DIR/scripts/install-addon.sh" lobby "$ROOT/addons/lobby_bp" >/dev/null || true
-    systemctl restart bedrock@lobby.service 2>/dev/null || true
+    ((was_active)) && systemctl restart bedrock@lobby.service 2>/dev/null || true
   fi
   ok "PUBLIC_HOST=$host"
 }
