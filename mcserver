@@ -46,34 +46,34 @@ HELP
 network_action(){ require_root; action="$1"; for i in "${INSTANCES[@]}"; do systemctl "$action" "bedrock@$i.service"; done; }
 cmd="${1:-help}"; shift || true
 case "$cmd" in
-  install) require_root; exec "$BASE/scripts/first-install.sh" "$@";;
-  status) exec "$RUNTIME_BASE/scripts/status.sh";;
+  install) require_root; exec bash "$BASE/scripts/first-install.sh" "$@";;
+  status) exec bash "$RUNTIME_BASE/scripts/status.sh";;
   update)
     require_root; mode="${1:-all}"; [[ $# -gt 0 ]] && shift || true
     case "$mode" in
       all)
-        "$APP_DIR/scripts/update-project.sh"
-        "$APP_DIR/scripts/update-bds.sh" latest
-        "$APP_DIR/scripts/update-pnx.sh" latest
-        "$APP_DIR/scripts/plugin-manager.sh" sync
-        "$APP_DIR/scripts/minigame-manager.sh" prepare
-        exec "$APP_DIR/scripts/doctor.sh";;
-      project) exec "$APP_DIR/scripts/update-project.sh";;
-      bds) exec "$APP_DIR/scripts/update-bds.sh" "$@";;
-      pnx) exec "$APP_DIR/scripts/update-pnx.sh" "$@";;
-      plugins) exec "$APP_DIR/scripts/plugin-manager.sh" sync;;
+        bash "$APP_DIR/scripts/update-project.sh"
+        bash "$APP_DIR/scripts/update-bds.sh" latest
+        bash "$APP_DIR/scripts/update-pnx.sh" latest
+        bash "$APP_DIR/scripts/plugin-manager.sh" sync
+        bash "$APP_DIR/scripts/minigame-manager.sh" prepare
+        exec bash "$APP_DIR/scripts/doctor.sh";;
+      project) exec bash "$APP_DIR/scripts/update-project.sh";;
+      bds) exec bash "$APP_DIR/scripts/update-bds.sh" "$@";;
+      pnx) exec bash "$APP_DIR/scripts/update-pnx.sh" "$@";;
+      plugins) exec bash "$APP_DIR/scripts/plugin-manager.sh" sync;;
       *) echo '[ERROR] Uso: mcserver update [all|project|bds|pnx|plugins]' >&2; exit 1;;
     esac;;
   rollback)
     require_root; kind="${1:-}"; value="${2:-}"
-    if [[ "$kind" == bds && -n "$value" ]]; then exec "$APP_DIR/scripts/update-bds.sh" --rollback "$value"; fi
-    if [[ "$kind" == pnx && -n "$value" ]]; then exec "$APP_DIR/scripts/update-pnx.sh" --rollback "$value"; fi
-    if [[ -n "$kind" && -z "$value" && "$kind" != bds && "$kind" != pnx ]]; then exec "$APP_DIR/scripts/update-bds.sh" --rollback "$kind"; fi
+    if [[ "$kind" == bds && -n "$value" ]]; then exec bash "$APP_DIR/scripts/update-bds.sh" --rollback "$value"; fi
+    if [[ "$kind" == pnx && -n "$value" ]]; then exec bash "$APP_DIR/scripts/update-pnx.sh" --rollback "$value"; fi
+    if [[ -n "$kind" && -z "$value" && "$kind" != bds && "$kind" != pnx ]]; then exec bash "$APP_DIR/scripts/update-bds.sh" --rollback "$kind"; fi
     echo '[ERROR] Uso: mcserver rollback bds <version> | pnx <release>' >&2; exit 1;;
-  engine) require_root; exec "$RUNTIME_BASE/scripts/engine-manager.sh" "$@";;
-  plugins) require_root; exec "$RUNTIME_BASE/scripts/plugin-manager.sh" "$@";;
-  minigames) require_root; exec "$RUNTIME_BASE/scripts/minigame-manager.sh" "$@";;
-  network) require_root; exec "$RUNTIME_BASE/scripts/network-manager.sh" "$@";;
+  engine) require_root; exec bash "$RUNTIME_BASE/scripts/engine-manager.sh" "$@";;
+  plugins) require_root; exec bash "$RUNTIME_BASE/scripts/plugin-manager.sh" "$@";;
+  minigames) require_root; exec bash "$RUNTIME_BASE/scripts/minigame-manager.sh" "$@";;
+  network) require_root; exec bash "$RUNTIME_BASE/scripts/network-manager.sh" "$@";;
   auto-update)
     require_root
     case "${1:-status}" in
@@ -83,11 +83,16 @@ case "$cmd" in
       *) echo '[ERROR] Uso: mcserver auto-update enable|disable|status' >&2; exit 1;;
     esac;;
   start) network_action start;; stop) network_action stop;; restart) network_action restart;;
-  backup) require_root; exec "$APP_DIR/scripts/network-backup.sh";;
-  import-survival) require_root; [[ $# -eq 1 ]] || { echo '[ERROR] Uso: mcserver import-survival /ruta/Mundo|Mundo.zip|Mundo.mcworld' >&2; exit 1; }; "$APP_DIR/scripts/import-survival.sh" "$1"; "$APP_DIR/scripts/check-survival-safety.sh" "$ROOT/instances/survival/server.properties"; systemctl start bedrock@survival.service;;
-  doctor) exec "$RUNTIME_BASE/scripts/doctor.sh";;
+  backup) require_root; exec bash "$APP_DIR/scripts/network-backup.sh";;
+  import-survival)
+    require_root
+    [[ $# -eq 1 ]] || { echo '[ERROR] Uso: mcserver import-survival /ruta/Mundo|Mundo.zip|Mundo.mcworld' >&2; exit 1; }
+    bash "$APP_DIR/scripts/import-survival.sh" "$1"
+    bash "$APP_DIR/scripts/check-survival-safety.sh" "$ROOT/instances/survival/server.properties"
+    systemctl start bedrock@survival.service;;
+  doctor) exec bash "$RUNTIME_BASE/scripts/doctor.sh";;
   logs) i="${1:-lobby}"; [[ " ${INSTANCES[*]} " == *" $i "* ]] || { echo '[ERROR] Instancia inválida.' >&2; exit 1; }; exec journalctl -u "bedrock@$i.service" -n 150 -f;;
-  web) exec "$RUNTIME_BASE/scripts/web-setup.sh" "$@";;
+  web) exec bash "$RUNTIME_BASE/scripts/web-setup.sh" "$@";;
   help|-h|--help) help_cmd;;
   *) help_cmd; echo "[ERROR] Comando desconocido: $cmd" >&2; exit 1;;
 esac
