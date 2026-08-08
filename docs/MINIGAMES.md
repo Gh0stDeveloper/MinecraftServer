@@ -25,7 +25,7 @@ La partida es `first-to-3`, incluye kit PvP, friendly-fire bloqueado, muerte/vac
 
 ## BedWars — NexoraBedWars 0.1
 
-NexoraBedWars es ahora el motor predeterminado y **no requiere mapas externos**. El plugin construye las arenas al iniciar.
+NexoraBedWars es el motor predeterminado y **no requiere mapas externos**.
 
 | Comando | Equipos | Jugadores |
 |---|---:|---:|
@@ -33,44 +33,18 @@ NexoraBedWars es ahora el motor predeterminado y **no requiere mapas externos**.
 | `/bw duo` | 2 vs 2 | 4 |
 | `/bw squad` | 4 vs 4 | 8 |
 
-Cada arena contiene:
-
-- base Roja;
-- base Azul;
-- isla central;
-- vacío entre islas para construir puentes;
-- una cama-núcleo Roja y una Azul;
-- estructura protegida contra roturas accidentales.
-
-### Reglas
-
-1. mientras la cama-núcleo del equipo siga viva, un jugador muerto reaparece;
-2. al destruir la cama rival, ese equipo pierde la capacidad de reaparecer;
-3. la siguiente muerte de cada jugador de ese equipo es definitiva;
-4. cuando un equipo queda sin jugadores vivos, el rival gana;
-5. todos los bloques colocados durante la partida se eliminan al terminar y la arena vuelve a su estado inicial.
-
-### Recursos y tienda
-
-Los jugadores reciben hierro periódicamente y oro cada varios ciclos. La configuración por defecto es:
-
-```yaml
-iron-period-ticks: 40
-gold-period-cycles: 5
-```
+Cada arena contiene dos bases, centro, vacío para puentes y una cama-núcleo por equipo. Mientras la cama siga viva hay respawn; destruida la cama, la siguiente muerte es definitiva. La estructura base está protegida y al terminar se eliminan los bloques temporales.
 
 Tienda:
 
 ```text
-/bw shop blocks   # 4 hierro -> 16 bloques del color del equipo
+/bw shop blocks   # 4 hierro -> 16 bloques del equipo
 /bw shop sword    # 10 hierro -> espada de piedra
 /bw shop pickaxe  # 12 hierro -> pico de hierro
 /bw shop bow      # 8 oro -> arco + flechas
 ```
 
-Solo se pueden romper bloques colocados durante la partida o la cama-núcleo rival. Friendly-fire está bloqueado.
-
-Comandos completos:
+Comandos:
 
 ```text
 /bw solo
@@ -79,13 +53,69 @@ Comandos completos:
 /bw leave
 /bw status
 /bw shop <blocks|sword|pickaxe|bow>
+/bw rebuild       # operador, sin partidas activas
 /lobby
 ```
 
-Un operador puede reconstruir las arenas cuando no existen partidas activas:
+### SilentBedwars como fallback
+
+```bash
+sudo mcserver plugins install silentbedwars
+sudo mcserver minigames import-bedwars "/ruta/al/MapaBedWars"
+```
+
+Para volver al motor nativo:
+
+```bash
+sudo mcserver plugins install nexora-bedwars
+sudo mcserver minigames prepare
+```
+
+Los dos JAR son incompatibles entre sí; `plugin-manager` elimina automáticamente el motor conflictivo.
+
+## SkyWars — NexoraSkyWars 0.1
+
+NexoraSkyWars es el motor predeterminado y **tampoco necesita mapas externos**. Genera hasta 2 arenas por defecto, cada una con cuatro islas y una isla central.
+
+| Comando | Equipos | Jugadores |
+|---|---:|---:|
+| `/sw solo` | 4 equipos de 1 | 4 |
+| `/sw duo` | 4 equipos de 2 | 8 |
+| `/sw squad` | 4 equipos de 4 | 16 |
+
+Equipos:
+
+- Rojo;
+- Azul;
+- Verde;
+- Amarillo.
+
+### Flujo
+
+1. cada equipo aparece en una isla independiente;
+2. recibe espada de madera y 16 bloques del color del equipo;
+3. cada isla posee un loot-crate inicial;
+4. el centro contiene loot-crates de mejor nivel;
+5. los jugadores construyen puentes hacia otras islas o el centro;
+6. no existe respawn;
+7. morir o caer al vacío elimina al jugador y lo convierte en espectador;
+8. el último equipo con jugadores vivos gana;
+9. los puentes, bloques temporales y crates se limpian/restauran automáticamente.
+
+Loot de isla puede entregar espada de piedra, pico de hierro, arco/flechas o manzana dorada. El loot central puede entregar espada de hierro, más flechas, ender pearls o manzanas doradas.
+
+La estructura del mapa está protegida: solo se pueden romper bloques colocados durante la partida o loot-crates.
+
+Comandos:
 
 ```text
-/bw rebuild
+/sw solo
+/sw duo
+/sw squad
+/sw leave
+/sw status
+/sw rebuild       # operador, sin partidas activas
+/lobby
 ```
 
 Configuración:
@@ -94,37 +124,18 @@ Configuración:
 lobby-host: 147.224.196.17
 lobby-port: 19132
 arena-base-y: 180
-arena-slots: 4
-iron-period-ticks: 40
-gold-period-cycles: 5
+arena-slots: 2
 ```
 
-### SilentBedwars como fallback
+### PowerSkywars como fallback
 
-SilentBedwars continúa en el catálogo, pero con `auto_install=false`. No se ejecuta junto a NexoraBedWars.
-
-Para cambiar manualmente al fallback:
+PowerSkywars permanece disponible con `auto_install=false`:
 
 ```bash
-sudo mcserver plugins install silentbedwars
+sudo mcserver plugins install powerskywars
 ```
 
-El administrador elimina `nexora-bedwars.jar` antes de activar el fallback. SilentBedwars sí necesita un mundo `world`, por lo que para ese modo legacy se mantiene:
-
-```bash
-sudo mcserver minigames import-bedwars "/ruta/al/MapaBedWars"
-```
-
-Para volver al motor propio:
-
-```bash
-sudo mcserver plugins install nexora-bedwars
-sudo mcserver minigames prepare
-```
-
-## SkyWars — PowerSkywars
-
-SkyWars continúa usando PowerSkywars con mapas administrados. Se importa cada mapa junto con sus spawns y centro:
+Al activar el fallback se retira `nexora-skywars.jar`. PowerSkywars sí utiliza mapas externos; solo para ese modo legacy se conservan:
 
 ```bash
 sudo mcserver minigames import-skywars Islas1 "/ruta/Islas1" \
@@ -132,12 +143,11 @@ sudo mcserver minigames import-skywars Islas1 "/ruta/Islas1" \
   --mid "0,68,0"
 ```
 
-El sistema valida `level.dat`/`db`, crea backup, copia el mapa, actualiza `minigames/skywars-maps.json` y regenera `maps_config.yml`.
-
-Eliminar:
+Para volver al motor nativo:
 
 ```bash
-sudo mcserver minigames remove-skywars Islas1
+sudo mcserver plugins install nexora-skywars
+sudo mcserver minigames prepare
 ```
 
 ## Estado
@@ -152,5 +162,5 @@ El lobby usa `NETWORK.ready`:
 
 - Survival: disponible por diseño;
 - PvP: listo con NexoraPractice;
-- BedWars: listo con NexoraBedWars sin importar mapa, o con el fallback legacy completamente configurado;
-- SkyWars: listo cuando existe PowerSkywars y al menos un mapa válido.
+- BedWars: listo con NexoraBedWars, o con el fallback legacy completamente configurado;
+- SkyWars: listo con NexoraSkyWars, o con PowerSkywars + mapa legacy válido.
