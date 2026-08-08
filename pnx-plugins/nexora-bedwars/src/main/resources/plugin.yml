@@ -1,6 +1,6 @@
 name: NexoraBedWars
 main: dev.gh0stdeveloper.minecraft.bedwars.NexoraBedWars
-version: "0.1.0"
+version: "0.1.1"
 api: "3.0.2"
 load: POSTWORLD
 author: Gh0stDeveloper
