@@ -13,7 +13,7 @@ jobs:
   validate:
     name: Validate project
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
 
     steps:
       - name: Checkout
@@ -29,13 +29,18 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Validate project invariants
-        run: python tests/validate_project.py
+      - name: Validate repository invariants
+        run: python3 tests/validate_project.py
+
+      - name: Test BDS update resolver
+        run: python3 tests/test_bds_resolver.py
 
       - name: Validate shell syntax
         shell: bash
         run: |
           set -euo pipefail
+          bash -n mcserver
+          bash -n install.sh
           while IFS= read -r -d '' script; do
             echo "Checking $script"
             bash -n "$script"
@@ -48,10 +53,28 @@ jobs:
           while IFS= read -r -d '' source; do
             echo "Checking $source"
             node --check "$source"
-          done < <(find addons -type f -name '*.js' -print0)
+          done < <(find addons web -type f -name '*.js' -print0)
+
+      - name: Validate Python syntax
+        run: |
+          python3 -m py_compile scripts/bds-resolver.py web/server.py tests/validate_project.py tests/test_bds_resolver.py
 
       - name: Validate Survival achievement safety
         run: bash scripts/check-survival-safety.sh instances/survival/server.properties
+
+      - name: Smoke test public website
+        shell: bash
+        run: |
+          set -euo pipefail
+          BEDROCK_BASE="$PWD" WEB_HOST=127.0.0.1 WEB_PORT=18080 python3 web/server.py >/tmp/bedrock-web.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          for _ in {1..20}; do
+            if curl -fsS http://127.0.0.1:18080/healthz >/dev/null; then break; fi
+            sleep 0.25
+          done
+          curl -fsS http://127.0.0.1:18080/healthz | python3 -c 'import json,sys; assert json.load(sys.stdin)["ok"] is True'
+          curl -fsS http://127.0.0.1:18080/api/status | python3 -c 'import json,sys; d=json.load(sys.stdin); assert len(d["servers"]) == 5; assert d["lobby_port"] == 19132'
 
   package:
     name: Package deployable project
@@ -67,9 +90,10 @@ jobs:
         run: |
           tar \
             --exclude='.git' \
-            --exclude='.github' \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
             -czf bedrock-network.tar.gz \
-            README.md addons config docs instances scripts systemd tests
+            README.md install.sh mcserver addons config docs instances scripts systemd tests web
 
       - name: Upload installation artifact
         uses: actions/upload-artifact@v4
