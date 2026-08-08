@@ -79,9 +79,9 @@ def validate_required_files():
     ]
     for rel in required: assert (ROOT/rel).is_file(),rel
 def validate_empty_service_state():
-    # Reproduce the VPS failure: every bedrock@ service is inactive and the
-    # updater captures active_instances inside a shell running with `set -e`.
-    # An empty list must be success, not a silent exit before BDS download.
+    # Reproduce a fresh/interrupted install where no bedrock@ service was active.
+    # Every helper that consumes that empty list must remain successful under
+    # `set -e`, including the post-activation restart path used by BDS and PNX.
     with tempfile.TemporaryDirectory() as td:
         bindir=Path(td)
         systemctl=bindir/"systemctl"
@@ -93,8 +93,11 @@ def validate_empty_service_state():
 source "{ROOT}/scripts/lib.sh"
 out="$(active_instances)"
 [[ -z "$out" ]]
+start_instance_list "$out"
 none="$(instances_by_engine impossible)"
 [[ -z "$none" ]]
+start_engine impossible
+stop_engine impossible
 '''
         subprocess.run(["bash","-c",command],check=True,env=envp,cwd=ROOT)
 def validate_bds_downloader():
