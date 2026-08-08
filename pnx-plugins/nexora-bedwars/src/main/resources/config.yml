@@ -1,0 +1,6 @@
+lobby-host: 147.224.196.17
+lobby-port: 19132
+arena-base-y: 180
+arena-slots: 4
+iron-period-ticks: 40
+gold-period-cycles: 5
