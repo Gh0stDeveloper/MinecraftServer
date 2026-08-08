@@ -8,8 +8,6 @@ CFG="$BASE/addons/lobby_bp/scripts/config.js"
 bool(){ [[ "$1" == 1 ]] && printf 'true' || printf 'false'; }
 pvp_ready=0; bedwars_ready=0; skywars_ready=0
 [[ -f "$BASE/instances/pvp/plugins/nexora-practice.jar" ]] && pvp_ready=1
-# NexoraBedWars genera sus arenas: no necesita mapa externo. Se conserva el
-# antiguo criterio solo para el fallback manual SilentBedwars.
 if [[ -f "$BASE/instances/bedwars/plugins/nexora-bedwars.jar" ]]; then
   bedwars_ready=1
 elif [[ -f "$BASE/instances/bedwars/plugins/silentbedwars.jar" \
@@ -17,7 +15,11 @@ elif [[ -f "$BASE/instances/bedwars/plugins/silentbedwars.jar" \
      && -f "$BASE/minigames/bedwars-map.ready" ]]; then
   bedwars_ready=1
 fi
-if [[ -f "$BASE/instances/skywars/plugins/powerskywars.jar" ]]; then
+# NexoraSkyWars genera sus propias islas. PowerSkywars queda como fallback
+# legacy y solo está listo cuando tiene al menos un mapa importado.
+if [[ -f "$BASE/instances/skywars/plugins/nexora-skywars.jar" ]]; then
+  skywars_ready=1
+elif [[ -f "$BASE/instances/skywars/plugins/powerskywars.jar" ]]; then
   shopt -s nullglob
   sky_maps=("$BASE"/instances/skywars/plugins/PowerSkywars/maps/*/level.dat)
   ((${#sky_maps[@]} > 0)) && skywars_ready=1
