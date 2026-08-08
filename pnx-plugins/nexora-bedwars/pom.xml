@@ -10,19 +10,13 @@
     <maven.compiler.release>21</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
-  <repositories>
-    <repository><id>central</id><url>https://repo.maven.apache.org/maven2/</url></repository>
-    <repository><id>jitpack.io</id><url>https://www.jitpack.io</url></repository>
-    <repository><id>opencollab-releases</id><url>https://repo.opencollab.dev/maven-releases</url></repository>
-    <repository><id>opencollab-snapshots</id><url>https://repo.opencollab.dev/maven-snapshots</url></repository>
-    <repository><id>powernukkitx-releases</id><url>https://repo.powernukkitx.org/releases</url></repository>
-  </repositories>
   <dependencies>
     <dependency>
       <groupId>org.powernukkitx</groupId>
       <artifactId>server</artifactId>
       <version>3.0.2</version>
-      <scope>provided</scope>
+      <scope>system</scope>
+      <systemPath>${env.PNX_API_JAR}</systemPath>
     </dependency>
   </dependencies>
   <build>
