@@ -30,17 +30,32 @@ activate_release(){
   printf '%s\n' "$version" > "$STATE_DIR/bds-version"; chown bedrock:bedrock "$STATE_DIR/bds-version"
 }
 download_release(){
-  local meta version url target zip tmp
+  local meta version url target zip tmp expected_sha1 expected_size
+  local -a downloader_args
   meta="$(python3 "$APP_DIR/scripts/bds-resolver.py" --version "$requested")" || die "No se pudo resolver la versión BDS."
   version="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["version"])' "$meta")"
   url="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["url"])' "$meta")"
+  expected_sha1="$(python3 -c 'import json,sys; v=json.loads(sys.argv[1]).get("sha1"); print(v or "")' "$meta")"
+  expected_size="$(python3 -c 'import json,sys; v=json.loads(sys.argv[1]).get("size_in_bytes"); print(v or "")' "$meta")"
   target="$RELEASES_DIR/$version"
   if [[ ! -x "$target/bedrock_server" ]]; then
     log "Descargando BDS $version desde el CDN oficial de Minecraft..." >&2
-    zip="$CACHE_DIR/bedrock-server-$version.zip"; curl -fL --retry 3 --connect-timeout 20 "$url" -o "$zip"
-    tmp="$(mktemp -d "$RELEASES_DIR/.extract-XXXXXX")"; unzip -q "$zip" -d "$tmp"
-    [[ -x "$tmp/bedrock_server" ]] || { rm -rf "$tmp"; die "ZIP BDS inválido."; }
-    rm -rf "$target"; mv "$tmp" "$target"; chmod +x "$target/bedrock_server"; chown -R bedrock:bedrock "$target"
+    zip="$CACHE_DIR/bedrock-server-$version.zip"
+    downloader_args=(--url "$url" --output "$zip" --attempts 5 --timeout 45)
+    [[ -n "$expected_sha1" ]] && downloader_args+=(--sha1 "$expected_sha1")
+    [[ -n "$expected_size" ]] && downloader_args+=(--size "$expected_size")
+    if ! python3 "$APP_DIR/scripts/bds-downloader.py" "${downloader_args[@]}" >/dev/null; then
+      rm -f "$zip" "$zip.part"
+      die "No se pudo obtener un ZIP BDS íntegro para $version."
+    fi
+    tmp="$(mktemp -d "$RELEASES_DIR/.extract-XXXXXX")"
+    if ! unzip -q "$zip" -d "$tmp"; then
+      rm -rf "$tmp"; rm -f "$zip"
+      die "No se pudo extraer el ZIP BDS validado."
+    fi
+    [[ -f "$tmp/bedrock_server" ]] || { rm -rf "$tmp"; rm -f "$zip"; die "ZIP BDS inválido: falta bedrock_server."; }
+    chmod +x "$tmp/bedrock_server"
+    rm -rf "$target"; mv "$tmp" "$target"; chown -R bedrock:bedrock "$target"
   fi
   printf '%s' "$version"
 }
