@@ -23,7 +23,22 @@ ok(){ printf '\033[1;32m[OK]\033[0m %s\n' "$*"; }
 warn(){ printf '\033[1;33m[WARN]\033[0m %s\n' "$*" >&2; }
 die(){ printf '\033[1;31m[ERROR]\033[0m %s\n' "$*" >&2; exit 1; }
 require_root(){ [[ ${EUID:-$(id -u)} -eq 0 ]] || die "Ejecuta con sudo/root."; }
-source_config(){ if [[ -f "$CONFIG_FILE" ]]; then source "$CONFIG_FILE"; fi; SERVER_NAME="${SERVER_NAME:-Bedrock Network}"; PUBLIC_HOST="${PUBLIC_HOST:-127.0.0.1}"; LOBBY_PORT="${LOBBY_PORT:-19132}"; SURVIVAL_PORT="${SURVIVAL_PORT:-19133}"; PVP_PORT="${PVP_PORT:-19134}"; BEDWARS_PORT="${BEDWARS_PORT:-19135}"; SKYWARS_PORT="${SKYWARS_PORT:-19136}"; WEB_PORT="${WEB_PORT:-8080}"; }
+source_config(){
+  local defaults="$APP_DIR/config/network.env"
+  [[ -f "$defaults" ]] || defaults="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/config/network.env"
+  [[ -f "$defaults" ]] && source "$defaults"
+  [[ -f "$CONFIG_FILE" ]] && source "$CONFIG_FILE"
+  SERVER_NAME="${SERVER_NAME:-Bedrock Network}"
+  PUBLIC_IP="${PUBLIC_IP:-}"
+  PUBLIC_DOMAIN="${PUBLIC_DOMAIN:-}"
+  PUBLIC_HOST="${PUBLIC_HOST:-${PUBLIC_IP:-127.0.0.1}}"
+  LOBBY_PORT="${LOBBY_PORT:-19132}"
+  SURVIVAL_PORT="${SURVIVAL_PORT:-19133}"
+  PVP_PORT="${PVP_PORT:-19134}"
+  BEDWARS_PORT="${BEDWARS_PORT:-19135}"
+  SKYWARS_PORT="${SKYWARS_PORT:-19136}"
+  WEB_PORT="${WEB_PORT:-8080}"
+}
 source_engines(){ local defaults="$APP_DIR/config/engines.env"; [[ -f "$defaults" ]] || defaults="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/config/engines.env"; [[ -f "$defaults" ]] && source "$defaults"; [[ -f "$ENGINES_FILE" ]] && source "$ENGINES_FILE"; LOBBY_ENGINE="${LOBBY_ENGINE:-bds}"; SURVIVAL_ENGINE="${SURVIVAL_ENGINE:-bds}"; PVP_ENGINE="${PVP_ENGINE:-pnx}"; BEDWARS_ENGINE="${BEDWARS_ENGINE:-pnx}"; SKYWARS_ENGINE="${SKYWARS_ENGINE:-pnx}"; PNX_DOWNLOAD_URL="${PNX_DOWNLOAD_URL:-https://github.com/PowerNukkitX/PowerNukkitX/releases/download/snapshot/powernukkitx-shaded.jar}"; PNX_EXPECTED_MINECRAFT="${PNX_EXPECTED_MINECRAFT:-26.40}"; PNX_JAVA_MIN="${PNX_JAVA_MIN:-21}"; PNX_HEAP_MIN="${PNX_HEAP_MIN:-512M}"; PNX_HEAP_MAX="${PNX_HEAP_MAX:-2G}"; MANAGED_PLUGINS="${MANAGED_PLUGINS:-true}"; }
 engine_for(){ source_engines; local instance="$1" var="${1^^}_ENGINE"; printf '%s' "${!var:-bds}"; }
 instances_by_engine(){ local wanted="$1" i; for i in "${INSTANCES[@]}"; do [[ "$(engine_for "$i")" == "$wanted" ]] && printf '%s\n' "$i"; done; }
