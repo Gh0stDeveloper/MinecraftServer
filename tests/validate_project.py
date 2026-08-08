@@ -57,7 +57,22 @@ def validate_survival_isolation():
     s=ROOT/"instances"/"survival"
     for p in [s/"behavior_packs",s/"plugins",s/"pnx.yml",s/"world_behavior_packs.json"]: assert not p.exists()
 def validate_required_files():
-    required=["mcserver","scripts/launch-instance.sh","scripts/update-pnx.sh","scripts/engine-manager.sh","scripts/plugin-manager.sh","scripts/minigame-manager.sh","scripts/network-manager.sh","scripts/normalize-permissions.sh","systemd/bedrock@.service","pnx-plugins/nexora-practice/src/main/resources/plugin.yml","pnx-plugins/nexora-bedwars/src/main/resources/plugin.yml","pnx-plugins/nexora-skywars/src/main/resources/plugin.yml"]
+    required=[
+        "mcserver",
+        "scripts/launch-instance.sh",
+        "scripts/update-pnx.sh",
+        "scripts/engine-manager.sh",
+        "scripts/plugin-manager.sh",
+        "scripts/minigame-manager.sh",
+        "scripts/network-manager.sh",
+        "scripts/normalize-permissions.sh",
+        "scripts/bootstrap-runtime.sh",
+        "scripts/firewall-manager.sh",
+        "systemd/bedrock@.service",
+        "pnx-plugins/nexora-practice/src/main/resources/plugin.yml",
+        "pnx-plugins/nexora-bedwars/src/main/resources/plugin.yml",
+        "pnx-plugins/nexora-skywars/src/main/resources/plugin.yml",
+    ]
     for rel in required: assert (ROOT/rel).is_file(),rel
 def main(): validate_instances(); validate_deployment(); validate_engines(); validate_json(); validate_manifests(); validate_plugins(); validate_survival_isolation(); validate_required_files(); print("All native-minigame BedrockNetwork checks passed.")
 if __name__=="__main__": main()

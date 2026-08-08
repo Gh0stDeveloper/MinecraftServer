@@ -26,10 +26,10 @@ apply_host(){
   if grep -q '^PUBLIC_HOST=' "$CONFIG_FILE" 2>/dev/null; then sed -i "s|^PUBLIC_HOST=.*|PUBLIC_HOST=$host|" "$CONFIG_FILE"; else printf '\nPUBLIC_HOST=%s\n' "$host" >> "$CONFIG_FILE"; fi
   chown root:bedrock "$CONFIG_FILE"; chmod 0640 "$CONFIG_FILE"
   source_config
-  "$APP_DIR/scripts/render-lobby-config.sh"
+  bash "$APP_DIR/scripts/render-lobby-config.sh"
   level="$(awk -F= '$1=="level-name"{print substr($0,index($0,"=")+1)}' "$INSTANCES_DIR/lobby/server.properties" 2>/dev/null || true)"
   if [[ -n "$level" && -d "$INSTANCES_DIR/lobby/worlds/$level" ]]; then
-    "$APP_DIR/scripts/install-addon.sh" lobby "$ROOT/addons/lobby_bp" >/dev/null || true
+    bash "$APP_DIR/scripts/install-addon.sh" lobby "$ROOT/addons/lobby_bp" >/dev/null || true
     ((was_active)) && systemctl restart bedrock@lobby.service 2>/dev/null || true
   fi
   ok "PUBLIC_HOST=$host"
@@ -49,6 +49,13 @@ verify(){
   local fail=0 instance port state
   status
   if domain_ok; then ok "DNS correcto: $PUBLIC_DOMAIN -> $PUBLIC_IP"; else warn "DNS no resuelve exactamente a $PUBLIC_IP."; fail=$((fail+1)); fi
+
+  if [[ -f "$APP_DIR/scripts/firewall-manager.sh" ]] && bash "$APP_DIR/scripts/firewall-manager.sh" check; then
+    ok "Firewall local permite HTTP/HTTPS y puertos Bedrock administrados."
+  else
+    warn "Firewall local incompleto. Ejecuta: sudo mcserver firewall apply"
+    fail=$((fail+1))
+  fi
 
   while IFS=':' read -r instance port; do
     if [[ "$instance" == survival && -f "$STATE_DIR/survival-pending-import" ]]; then

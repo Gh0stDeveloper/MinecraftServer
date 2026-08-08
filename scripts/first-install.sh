@@ -17,7 +17,7 @@ done
 ARCH="$(uname -m)"; [[ "$ARCH" == x86_64 || "$ARCH" == amd64 ]] || { echo "BDS Linux oficial requiere x86_64/AMD64. Detectado: $ARCH" >&2; exit 1; }
 echo '[mcserver] Instalando dependencias...'
 apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl unzip rsync tar python3 jq git maven openjdk-21-jdk-headless ufw nginx util-linux iproute2
+DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl unzip rsync tar python3 jq git maven openjdk-21-jdk-headless ufw nginx util-linux iproute2 iptables
 java -version 2>&1 | grep -Eq 'version "(21|2[2-9]|[3-9][0-9])' || { echo 'Se requiere Java 21+ para PowerNukkitX.' >&2; exit 1; }
 if ! id bedrock >/dev/null 2>&1; then useradd --system --create-home --home-dir "$ROOT" --shell /usr/sbin/nologin bedrock; fi
 mkdir -p "$APP_DIR" "$ROOT"/{bds/releases,pnx/releases,instances,backups,state,config,cache,addons,scripts,plugin-build,minigames,uploads}
@@ -66,8 +66,10 @@ bash "$APP_DIR/scripts/minigame-manager.sh" prepare
 bash "$APP_DIR/scripts/render-lobby-config.sh"
 bash "$APP_DIR/scripts/install-addon.sh" lobby "$ROOT/addons/lobby_bp"
 source "$CONFIG"
-for PORT in "$LOBBY_PORT" "$SURVIVAL_PORT" "$PVP_PORT" "$BEDWARS_PORT" "$SKYWARS_PORT"; do ufw allow "$PORT/udp" >/dev/null 2>&1 || true; done
-ufw allow "$WEB_PORT/tcp" >/dev/null 2>&1 || true
+# UFW puede estar desactivado en imágenes Oracle. El administrador de firewall
+# usa UFW cuando está activo y, en caso contrario, crea una cadena iptables
+# persistente antes del REJECT global de la imagen cloud.
+bash "$APP_DIR/scripts/firewall-manager.sh" apply
 systemctl enable --now bedrock-web.service; start_network
 if [[ ! -s "$ROOT/config/web-admin.token.sha256" ]]; then bash "$APP_DIR/scripts/web-setup.sh" admin-token; fi
 [[ -n "$DOMAIN" ]] && bash "$APP_DIR/scripts/web-setup.sh" domain "$DOMAIN"
