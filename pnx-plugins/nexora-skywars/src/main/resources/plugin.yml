@@ -1,6 +1,6 @@
 name: NexoraSkyWars
 main: dev.gh0stdeveloper.minecraft.skywars.NexoraSkyWars
-version: "0.1.1"
+version: "0.1.0"
 api: "3.0.2"
 load: POSTWORLD
 author: Gh0stDeveloper
