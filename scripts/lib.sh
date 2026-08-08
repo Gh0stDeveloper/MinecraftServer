@@ -49,8 +49,6 @@ instances_by_engine(){
       printf '%s\n' "$i"
     fi
   done
-  # Empty result is valid. Callers use this in process/command substitutions
-  # while running with `set -e`; never let "no matches" abort an updater.
   return 0
 }
 validate_engine_layout(){ [[ "$(engine_for lobby)" == bds ]] || die "Lobby debe permanecer en BDS."; [[ "$(engine_for survival)" == bds ]] || die "Survival debe permanecer en BDS para proteger el mundo vanilla."; local i engine; for i in "${INSTANCES[@]}"; do engine="$(engine_for "$i")"; [[ "$engine" == bds || "$engine" == pnx ]] || die "Motor inválido para $i: $engine"; done; }
@@ -67,15 +65,35 @@ active_instances(){
       printf '%s\n' "$i"
     fi
   done
-  # Having zero active services is a legitimate state, especially during
-  # bootstrap of an interrupted fresh install. Return success explicitly so
-  # `was_active="$(active_instances)"` cannot terminate a `set -e` script.
   return 0
 }
-start_instance_list(){ local list="$1" i; while IFS= read -r i; do [[ -n "$i" ]] && systemctl start "bedrock@$i.service"; done <<< "$list"; }
+start_instance_list(){
+  local list="$1" i
+  while IFS= read -r i; do
+    [[ -n "$i" ]] || continue
+    systemctl start "bedrock@$i.service"
+  done <<< "$list"
+  # An empty previous-active list is normal on first bootstrap. Never leak the
+  # false status from `[[ -n "$i" ]]` into a caller running with `set -e`.
+  return 0
+}
 instances_healthy(){ local list="$1" i failed=0; sleep 2; while IFS= read -r i; do [[ -n "$i" ]] || continue; systemctl is-active --quiet "bedrock@$i.service" || { warn "$i no está activo."; failed=1; }; done <<< "$list"; return "$failed"; }
-stop_engine(){ local wanted="$1" i; while read -r i; do [[ -n "$i" ]] && systemctl stop "bedrock@$i.service" 2>/dev/null || true; done < <(instances_by_engine "$wanted"); }
-start_engine(){ local wanted="$1" i; while read -r i; do [[ -n "$i" ]] && systemctl start "bedrock@$i.service"; done < <(instances_by_engine "$wanted"); }
+stop_engine(){
+  local wanted="$1" i
+  while IFS= read -r i; do
+    [[ -n "$i" ]] || continue
+    systemctl stop "bedrock@$i.service" 2>/dev/null || true
+  done < <(instances_by_engine "$wanted")
+  return 0
+}
+start_engine(){
+  local wanted="$1" i
+  while IFS= read -r i; do
+    [[ -n "$i" ]] || continue
+    systemctl start "bedrock@$i.service"
+  done < <(instances_by_engine "$wanted")
+  return 0
+}
 services_healthy(){ local i failed=0; sleep 2; for i in "${INSTANCES[@]}"; do systemctl is-active --quiet "bedrock@$i.service" || { warn "$i no está activo."; failed=1; }; done; return "$failed"; }
 assert_survival_safe(){ "$APP_DIR/scripts/check-survival-safety.sh" "$INSTANCES_DIR/survival/server.properties"; }
 install_units(){
