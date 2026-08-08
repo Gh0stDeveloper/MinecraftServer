@@ -22,8 +22,8 @@ fi
 ui_banner(){
   local subtitle="${1:-Instalador y administrador de Minecraft Bedrock}"
   printf '\n%b╭────────────────────────────────────────────────────────╮%b\n' "$UI_VIOLET$UI_BOLD" "$UI_RESET"
-  printf '%b│%b  %bNEXORA · BEDROCK NETWORK%b%-29s%b│%b\n' "$UI_VIOLET$UI_BOLD" "$UI_RESET" "$UI_WHITE$UI_BOLD" "$UI_RESET" "" "$UI_VIOLET$UI_BOLD" "$UI_RESET"
-  printf '%b│%b  %-54s%b│%b\n' "$UI_VIOLET$UI_BOLD" "$UI_RESET$UI_GRAY" "$subtitle" "$UI_VIOLET$UI_BOLD" "$UI_RESET"
+  printf '%b│%b  %bNEXORA · BEDROCK NETWORK%b%-29s%b │%b\n' "$UI_VIOLET$UI_BOLD" "$UI_RESET" "$UI_WHITE$UI_BOLD" "$UI_RESET" "" "$UI_VIOLET$UI_BOLD" "$UI_RESET"
+  printf '%b│%b  %-54s%b │%b\n' "$UI_VIOLET$UI_BOLD" "$UI_RESET$UI_GRAY" "$subtitle" "$UI_VIOLET$UI_BOLD" "$UI_RESET"
   printf '%b╰────────────────────────────────────────────────────────╯%b\n\n' "$UI_VIOLET$UI_BOLD" "$UI_RESET"
 }
 
