@@ -8,14 +8,14 @@
       "engine": "pnx",
       "source_type": "local-maven",
       "source": "pnx-plugins/nexora-practice",
-      "artifact": "target/nexora-practice-0.2.0.jar",
+      "artifact": "target/nexora-practice-0.2.1.jar",
       "license": "PROJECT",
       "ref": "project",
       "auto_install": true,
       "description": "Motor PvP propio con arenas autogeneradas, colas 1v1/2v2/4v4, first-to-3, kits, espectadores y protección de arena.",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "minecraft": "26.40",
-      "api": "2.0.0"
+      "api": "3.0.2"
     },
     {
       "id": "nexora-bedwars",
@@ -24,15 +24,15 @@
       "engine": "pnx",
       "source_type": "local-maven",
       "source": "pnx-plugins/nexora-bedwars",
-      "artifact": "target/nexora-bedwars-0.1.0.jar",
+      "artifact": "target/nexora-bedwars-0.1.1.jar",
       "license": "PROJECT",
       "ref": "project",
       "auto_install": true,
       "conflicts": ["silentbedwars"],
       "description": "Motor BedWars propio con Solo/Duo/Escuadra, arenas nativas, camas-núcleo, recursos, tienda, puentes, respawn y eliminación final.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "minecraft": "26.40",
-      "api": "2.0.0"
+      "api": "3.0.2"
     },
     {
       "id": "silentbedwars",
@@ -59,15 +59,15 @@
       "engine": "pnx",
       "source_type": "local-maven",
       "source": "pnx-plugins/nexora-skywars",
-      "artifact": "target/nexora-skywars-0.1.0.jar",
+      "artifact": "target/nexora-skywars-0.1.1.jar",
       "license": "PROJECT",
       "ref": "project",
       "auto_install": true,
       "conflicts": ["powerskywars"],
       "description": "Motor SkyWars propio con Solo/Duo/Escuadra, cuatro islas/equipos, loot-crates, centro, puentes, eliminación sin respawn y cleanup automático.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "minecraft": "26.40",
-      "api": "2.0.0"
+      "api": "3.0.2"
     },
     {
       "id": "powerskywars",
