@@ -28,12 +28,12 @@ ui_banner(){
 }
 
 ui_section(){ printf '\n%b%s%b\n' "$UI_PINK$UI_BOLD" "━━ $*" "$UI_RESET"; }
-ui_step(){ printf '%b[◆]%b %b%s%b\n' "$UI_CYAN$UI_BOLD" "$UI_RESET" "$UI_BOLD" "$*" "$UI_RESET"; }
-ui_ok(){ printf '%b[✓]%b %b%s%b\n' "$UI_VIOLET$UI_BOLD" "$UI_RESET" "$UI_BOLD" "$*" "$UI_RESET"; }
-ui_warn(){ printf '%b[!]%b %b%s%b\n' "$UI_AMBER$UI_BOLD" "$UI_RESET" "$UI_BOLD" "$*" "$UI_RESET" >&2; }
-ui_error(){ printf '%b[×]%b %b%s%b\n' "$UI_RED$UI_BOLD" "$UI_RESET" "$UI_BOLD" "$*" "$UI_RESET" >&2; }
-ui_note(){ printf '%b[→]%b %s\n' "$UI_GRAY$UI_BOLD" "$UI_RESET" "$*"; }
-ui_kv(){ printf '    %b%-16s%b %s\n' "$UI_GRAY$UI_BOLD" "$1" "$UI_RESET" "$2"; }
+ui_step(){ printf '%b[◆]%b %b%s%b\n' "$UI_CYAN$UI_BOLD" "$UI_RESET" "$UI_WHITE$UI_BOLD" "$*" "$UI_RESET"; }
+ui_ok(){ printf '%b[✓]%b %b%s%b\n' "$UI_VIOLET$UI_BOLD" "$UI_RESET" "$UI_WHITE$UI_BOLD" "$*" "$UI_RESET"; }
+ui_warn(){ printf '%b[!]%b %b%s%b\n' "$UI_AMBER$UI_BOLD" "$UI_RESET" "$UI_WHITE$UI_BOLD" "$*" "$UI_RESET" >&2; }
+ui_error(){ printf '%b[×]%b %b%s%b\n' "$UI_RED$UI_BOLD" "$UI_RESET" "$UI_WHITE$UI_BOLD" "$*" "$UI_RESET" >&2; }
+ui_note(){ printf '%b[→]%b %b%s%b\n' "$UI_GRAY$UI_BOLD" "$UI_RESET" "$UI_GRAY" "$*" "$UI_RESET"; }
+ui_kv(){ printf '    %b%-16s%b %b%s%b\n' "$UI_GRAY$UI_BOLD" "$1" "$UI_RESET" "$UI_WHITE" "$2" "$UI_RESET"; }
 
 ui_log_dir(){
   if [[ ${EUID:-$(id -u)} -eq 0 ]]; then printf '%s' '/var/log/mcserver'; else printf '%s' "${TMPDIR:-/tmp}/mcserver-${UID:-user}"; fi
@@ -51,12 +51,12 @@ ui_run_task(){
     "$@"
     rc=$?
   elif ((_MCS_UI_TTY)); then
-    printf '%b[◆]%b %b%s...%b' "$UI_CYAN$UI_BOLD" "$UI_RESET" "$UI_BOLD" "$label" "$UI_RESET"
+    printf '%b[◆]%b %b%s...%b' "$UI_CYAN$UI_BOLD" "$UI_RESET" "$UI_WHITE$UI_BOLD" "$label" "$UI_RESET"
     "$@" >>"$log_file" 2>&1 || rc=$?
     if ((rc == 0)); then
-      printf '\r\033[K%b[✓]%b %b%s%b\n' "$UI_VIOLET$UI_BOLD" "$UI_RESET" "$UI_BOLD" "$label" "$UI_RESET"
+      printf '\r\033[K%b[✓]%b %b%s%b\n' "$UI_VIOLET$UI_BOLD" "$UI_RESET" "$UI_WHITE$UI_BOLD" "$label" "$UI_RESET"
     else
-      printf '\r\033[K%b[×]%b %b%s%b\n' "$UI_RED$UI_BOLD" "$UI_RESET" "$UI_BOLD" "$label" "$UI_RESET" >&2
+      printf '\r\033[K%b[×]%b %b%s%b\n' "$UI_RED$UI_BOLD" "$UI_RESET" "$UI_WHITE$UI_BOLD" "$label" "$UI_RESET" >&2
     fi
   else
     ui_step "$label"
@@ -75,9 +75,9 @@ ui_run_task(){
 ui_prompt(){
   local prompt="$1" default="${2:-}" value
   if [[ -n "$default" ]]; then
-    printf '%b?%b %b%s%b %b[%s]%b: ' "$UI_CYAN$UI_BOLD" "$UI_RESET" "$UI_BOLD" "$prompt" "$UI_RESET" "$UI_GRAY" "$default" "$UI_RESET" >/dev/tty
+    printf '%b?%b %b%s%b %b[%s]%b: ' "$UI_CYAN$UI_BOLD" "$UI_RESET" "$UI_WHITE$UI_BOLD" "$prompt" "$UI_RESET" "$UI_GRAY" "$default" "$UI_RESET" >/dev/tty
   else
-    printf '%b?%b %b%s%b: ' "$UI_CYAN$UI_BOLD" "$UI_RESET" "$UI_BOLD" "$prompt" "$UI_RESET" >/dev/tty
+    printf '%b?%b %b%s%b: ' "$UI_CYAN$UI_BOLD" "$UI_RESET" "$UI_WHITE$UI_BOLD" "$prompt" "$UI_RESET" >/dev/tty
   fi
   IFS= read -r value </dev/tty
   printf '%s' "${value:-$default}"
