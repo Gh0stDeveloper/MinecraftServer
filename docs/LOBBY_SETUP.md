@@ -1,20 +1,52 @@
 # Preparación del lobby
 
-El lobby se construye como una **isla flotante tipo hub** a Y=160.
+El lobby se construye como una **isla flotante tipo hub** a Y=160. La base no necesita descargarse como mapa externo: el propio Behavior Pack puede generarla de forma reproducible.
 
-1. Inicia `bedrock@lobby` una vez para que BDS cree el mundo `Lobby`.
-2. Detén el servidor.
-3. Instala `addons/lobby_bp` con `scripts/install-addon.sh`.
-4. Reinicia el lobby.
-5. Concede temporalmente al constructor la etiqueta `network.admin` desde consola:
+## Primera construcción
+
+1. La instalación automática inicia el lobby una vez para crear el mundo `Lobby` e instala `addons/lobby_bp`.
+2. Desde la consola de BDS concede al constructor la etiqueta administrativa:
 
 ```text
 tag "TuGamertag" add network.admin
 ```
 
-6. Dentro del juego ejecuta `!buildhub` para generar la isla base.
-7. Crea cuatro NPC llamados exactamente: `Survival`, `PvP`, `BedWars`, `SkyWars`, siguiendo `docs/LOBBY_ISLAND.md`.
-8. Los jugadores también pueden usar una brújula o `!menu`.
-9. Retira la etiqueta de administrador cuando termines si no la necesitas.
+3. Entra al lobby y escribe:
 
-El lobby tiene cheats habilitados deliberadamente porque `/transfer` y la generación administrativa del hub los requieren. Esto no afecta al Survival porque es otro mundo y otra instancia BDS completamente separada.
+```text
+!buildhub
+```
+
+4. El generador crea la isla central, plaza, caminos y cuatro plataformas:
+
+```text
+                 NORTE
+               SURVIVAL
+                  │
+                  │
+ OESTE SKYWARS ─ SPAWN ─ PVP ESTE
+                  │
+                  │
+               BEDWARS
+                  SUR
+```
+
+5. Crea cuatro NPC con estos nombres exactos:
+
+- `Survival`
+- `PvP`
+- `BedWars`
+- `SkyWars`
+
+6. Los jugadores pueden interactuar con los NPC o usar una brújula/`!menu`.
+7. Cuando termines de construir, puedes retirar la etiqueta:
+
+```text
+tag "TuGamertag" remove network.admin
+```
+
+## Seguridad
+
+El lobby tiene cheats habilitados deliberadamente porque `/transfer` y las herramientas administrativas del hub los requieren. **Esto no habilita cheats en Survival**: Survival vive en otra instancia BDS, utiliza otro mundo y mantiene `allow-cheats=false`.
+
+La isla generada es la estructura base. Puede decorarse después con construcciones, vegetación, cascadas, hologramas, portales y zonas temáticas sin cambiar la arquitectura de la red.
