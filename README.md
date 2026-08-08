@@ -5,18 +5,18 @@ Red híbrida para Minecraft Bedrock **26.40** con Lobby, Survival persistente, P
 ## Despliegue
 
 ```text
-IP pública : 147.224.196.17
+IP pública : 163.192.204.78
 Dominio    : minecraftnexora.duckdns.org
 Lobby      : UDP 19132
 Survival   : UDP 19133
 PvP        : UDP 19134
 BedWars    : UDP 19135
 SkyWars    : UDP 19136
-Web        : TCP 8080
+Web interno: TCP 8080
 HTTP/HTTPS : TCP 80/443
 ```
 
-`147.224.196.17` queda disponible como fallback. `mcserver network use-domain` solo activa `minecraftnexora.duckdns.org` si resuelve exactamente a esa IP.
+`163.192.204.78` queda disponible como fallback. `mcserver network use-domain` solo activa `minecraftnexora.duckdns.org` si resuelve exactamente a esa IP.
 
 ## Arquitectura
 
@@ -49,7 +49,7 @@ También puede indicarse el despliegue explícitamente:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Gh0stDeveloper/MinecraftServer/main/install.sh | sudo bash -s -- \
-  --public-ip 147.224.196.17 \
+  --public-ip 163.192.204.78 \
   --domain minecraftnexora.duckdns.org
 ```
 
@@ -61,14 +61,23 @@ sudo reboot
 
 ### Recuperar/completar una instalación
 
-Si una instalación se interrumpió después de crear los servicios:
+Si una instalación se interrumpió después de crear los servicios pero `doctor` muestra `BDS: none`, `PowerNukkitX: none` o plugins Nexora faltantes:
 
 ```bash
-sudo mcserver update
-sudo mcserver restart
-sudo systemctl restart bedrock-web.service
-sudo mcserver doctor
+sudo mcserver update project
+sudo mcserver bootstrap
+```
+
+`bootstrap` completa de forma idempotente los runtimes BDS/PNX, plugins, minijuegos, Lobby, web y firewall local. Mantiene Survival detenido mientras `survival-pending-import` exista.
+
+Después:
+
+```bash
+sudo mcserver plugins doctor
+sudo mcserver minigames status
+sudo mcserver firewall status
 sudo mcserver network verify
+sudo mcserver doctor
 ```
 
 Mientras el Survival todavía no se haya importado, `network verify` considera normal que UDP/19133 no esté escuchando.
@@ -77,7 +86,13 @@ Mientras el Survival todavía no se haya importado, `network verify` considera n
 
 No es necesario copiar el mundo dentro del repositorio.
 
-Puedes subir el archivo a cualquier directorio de la VPS; se recomienda:
+La opción recomendada, una vez activo HTTPS, es el panel privado:
+
+```text
+https://minecraftnexora.duckdns.org/admin.html
+```
+
+También puedes subir el archivo por SSH/SFTP a cualquier directorio de la VPS, por ejemplo:
 
 ```text
 /root/uploads/MiSurvival.zip
@@ -135,12 +150,30 @@ allow-list=true
 
 `level.dat` se copia sin modificar, `SURVIVAL_ENGINE=bds` permanece bloqueado y no se instalan plugins PNX ni Behavior Packs de minijuegos en Survival.
 
-## Red y DuckDNS
+## Red, firewall y DuckDNS
 
 ```bash
 sudo mcserver network status
+sudo mcserver firewall status
 sudo mcserver network verify
 ```
+
+Aplicar/reparar el firewall local:
+
+```bash
+sudo mcserver firewall apply
+```
+
+En imágenes Oracle con UFW desactivado, `mcserver` crea una cadena `BEDROCK-NETWORK` antes del `REJECT` global y permite TCP 80/443 + UDP 19132-19136. Las reglas se persisten con `netfilter-persistent`. TCP/22 no se modifica.
+
+En Oracle Cloud también deben permitirse en Security Lists/NSG:
+
+```text
+TCP 80,443
+UDP 19132-19136
+```
+
+No es necesario publicar TCP/8080; Nginx recibe 80/443 y reenvía internamente a la web.
 
 Activar el dominio cuando DNS sea correcto:
 
@@ -156,12 +189,6 @@ sudo mcserver network use-ip
 
 ## Página web y HTTPS
 
-Backend inicial:
-
-```text
-http://147.224.196.17:8080
-```
-
 Configurar Nginx con el dominio real:
 
 ```bash
@@ -174,9 +201,19 @@ Configurar HTTPS:
 sudo mcserver web https minecraftnexora.duckdns.org TU_CORREO
 ```
 
-El administrador se niega a configurar Nginx/Certbot si el dominio no resuelve a `147.224.196.17`. Esto evita solicitar accidentalmente certificados para otro hostname.
+El administrador se niega a configurar Nginx/Certbot si el dominio no resuelve a `163.192.204.78`. Esto evita solicitar accidentalmente certificados para otro hostname.
 
-En Oracle Cloud también deben permitirse TCP 80/443 en Security Lists/NSG; UFW por sí solo no abre el firewall externo de Oracle.
+Panel privado:
+
+```bash
+sudo mcserver web admin-token
+```
+
+Luego abre:
+
+```text
+https://minecraftnexora.duckdns.org/admin.html
+```
 
 ## Administración
 
@@ -280,5 +317,6 @@ CI valida:
 - fallbacks SilentBedwars/PowerSkywars;
 - importación de Survival desde `.zip` y `.mcworld`;
 - rechazo de ZIPs inseguros;
+- recuperación de permisos;
 - safety gates de DNS/HTTPS;
 - web y artifact desplegable.
