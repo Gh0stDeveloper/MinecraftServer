@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-
 EXPECTED_PORTS = {
     "lobby": "19132",
     "survival": "19133",
@@ -58,7 +57,6 @@ def validate_manifests() -> None:
     uuids: set[str] = set()
     manifests = list((ROOT / "addons").glob("*/manifest.json"))
     assert manifests, "No addon manifests found"
-
     for path in manifests:
         data = json.loads(path.read_text(encoding="utf-8"))
         assert data.get("format_version") == 2, f"{path}: unsupported format_version"
@@ -76,11 +74,29 @@ def validate_survival_isolation() -> None:
         assert not path.exists(), f"Survival must not ship network addons: {path}"
 
 
+def validate_manager_files() -> None:
+    required = [
+        ROOT / "mcserver",
+        ROOT / "install.sh",
+        ROOT / "scripts" / "bds-resolver.py",
+        ROOT / "systemd" / "bedrock-web.service",
+        ROOT / "systemd" / "bedrock-auto-update.timer",
+        ROOT / "web" / "server.py",
+        ROOT / "web" / "static" / "index.html",
+    ]
+    for path in required:
+        assert path.is_file(), f"Missing manager component: {path}"
+    env = read_properties(ROOT / "config" / "network.env")
+    assert env.get("WEB_PORT") == "8080"
+    assert env.get("SERVER_NAME")
+
+
 def main() -> None:
     validate_instances()
     validate_json_files()
     validate_manifests()
     validate_survival_isolation()
+    validate_manager_files()
     print("All BedrockNetwork repository checks passed.")
 
 
