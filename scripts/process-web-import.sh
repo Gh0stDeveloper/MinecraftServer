@@ -5,7 +5,9 @@ APP="$ROOT/app"
 UPLOADS="$ROOT/uploads"
 REQUESTS="$UPLOADS/requests"
 RESULTS="$ROOT/state/web-imports"
-mkdir -p "$REQUESTS" "$RESULTS"
+mkdir -p "$REQUESTS" "$RESULTS" /run/lock
+exec 9>/run/lock/bedrock-network.lock
+flock 9
 
 write_state(){
   local id="$1" state="$2" ok="$3" message="$4"
@@ -26,40 +28,40 @@ for req in "$REQUESTS"/*.json; do
   processing="$REQUESTS/.${id}.processing"
   mv "$req" "$processing" 2>/dev/null || continue
 
-  stored="$(python3 - "$processing" <<'PY'
+  readarray -t meta < <(python3 - "$processing" <<'PY'
 import json,sys
 try:
- d=json.load(open(sys.argv[1],encoding='utf-8')); print(d.get('stored_name',''))
-except Exception: print('')
+ d=json.load(open(sys.argv[1],encoding='utf-8'))
+ print(d.get('stored_name','')); print(d.get('sha256','')); print(d.get('size',''))
+except Exception:
+ print(''); print(''); print('')
 PY
-)"
-  if [[ ! "$stored" =~ ^[0-9a-f]{32}\.(zip|mcworld)$ || "${stored%%.*}" != "$id" ]]; then
+)
+  stored="${meta[0]:-}"; expected_sha="${meta[1]:-}"; expected_size="${meta[2]:-}"
+  if [[ ! "$stored" =~ ^[0-9a-f]{32}\.(zip|mcworld)$ || "${stored%%.*}" != "$id" || ! "$expected_sha" =~ ^[0-9a-f]{64}$ || ! "$expected_size" =~ ^[0-9]+$ ]]; then
     write_state "$id" failed false "Solicitud inválida."
     rm -f "$processing"
     continue
   fi
 
-  file="$UPLOADS/$stored"
-  real="$(realpath -m "$file")"
+  file="$UPLOADS/$stored"; real="$(realpath -m "$file")"
   case "$real" in "$UPLOADS"/*) ;; *) write_state "$id" failed false "Ruta de subida inválida."; rm -f "$processing"; continue;; esac
-  if [[ ! -f "$real" ]]; then
-    write_state "$id" failed false "El archivo subido ya no existe."
-    rm -f "$processing"
+  if [[ ! -f "$real" ]]; then write_state "$id" failed false "El archivo subido ya no existe."; rm -f "$processing"; continue; fi
+  actual_size="$(stat -c %s "$real")"; actual_sha="$(sha256sum "$real" | awk '{print $1}')"
+  if [[ "$actual_size" != "$expected_size" || "$actual_sha" != "$expected_sha" ]]; then
+    write_state "$id" failed false "La integridad del archivo subido no coincide con la solicitud."
+    rm -f "$real" "$processing"
     continue
   fi
 
   write_state "$id" importing true "Validando e importando Survival..."
   set +e
-  output="$($APP/scripts/import-survival.sh "$real" 2>&1)"
-  rc=$?
+  output="$($APP/scripts/import-survival.sh "$real" 2>&1)"; rc=$?
   if (( rc == 0 )); then
-    safety="$($APP/scripts/check-survival-safety.sh "$ROOT/instances/survival/server.properties" 2>&1)"
-    rc=$?
-    output="$output\n$safety"
+    safety="$($APP/scripts/check-survival-safety.sh "$ROOT/instances/survival/server.properties" 2>&1)"; rc=$?; output="$output\n$safety"
   fi
   if (( rc == 0 )); then
-    systemctl start bedrock@survival.service
-    sleep 2
+    systemctl start bedrock@survival.service; sleep 2
     if systemctl is-active --quiet bedrock@survival.service; then
       write_state "$id" success true "$output\nSurvival iniciado correctamente."
     else
