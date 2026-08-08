@@ -8,9 +8,15 @@ CFG="$BASE/addons/lobby_bp/scripts/config.js"
 bool(){ [[ "$1" == 1 ]] && printf 'true' || printf 'false'; }
 pvp_ready=0; bedwars_ready=0; skywars_ready=0
 [[ -f "$BASE/instances/pvp/plugins/nexora-practice.jar" ]] && pvp_ready=1
-[[ -f "$BASE/instances/bedwars/plugins/silentbedwars.jar" \
-   && -f "$BASE/instances/bedwars/worlds/world/level.dat" \
-   && -f "$BASE/minigames/bedwars-map.ready" ]] && bedwars_ready=1
+# NexoraBedWars genera sus arenas: no necesita mapa externo. Se conserva el
+# antiguo criterio solo para el fallback manual SilentBedwars.
+if [[ -f "$BASE/instances/bedwars/plugins/nexora-bedwars.jar" ]]; then
+  bedwars_ready=1
+elif [[ -f "$BASE/instances/bedwars/plugins/silentbedwars.jar" \
+     && -f "$BASE/instances/bedwars/worlds/world/level.dat" \
+     && -f "$BASE/minigames/bedwars-map.ready" ]]; then
+  bedwars_ready=1
+fi
 if [[ -f "$BASE/instances/skywars/plugins/powerskywars.jar" ]]; then
   shopt -s nullglob
   sky_maps=("$BASE"/instances/skywars/plugins/PowerSkywars/maps/*/level.dat)
