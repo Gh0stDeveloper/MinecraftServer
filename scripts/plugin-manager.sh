@@ -6,6 +6,7 @@ require_root
 source_config
 source_engines
 CATALOG="$APP_DIR/config/plugins.json"
+GRADLE_COMPAT="$APP_DIR/config/pnx-gradle.init.gradle"
 PLUGIN_STATE="$STATE_DIR/plugins"
 BUILD_ROOT="$ROOT/plugin-build"
 mkdir -p "$PLUGIN_STATE" "$BUILD_ROOT"
@@ -20,7 +21,7 @@ Los plugins se compilan desde fuentes fijadas en config/plugins.json.
 No se redistribuyen binarios de terceros dentro de este repositorio.
 HELP
 }
-need_tools(){ command -v jq >/dev/null || die "Falta jq."; command -v git >/dev/null || die "Falta git."; command -v java >/dev/null || die "Falta Java."; }
+need_tools(){ command -v jq >/dev/null || die "Falta jq."; command -v git >/dev/null || die "Falta git."; command -v java >/dev/null || die "Falta Java."; command -v mvn >/dev/null || die "Falta Maven."; }
 row(){ local id="$1"; jq -cer --arg id "$id" '.plugins[] | select(.id == $id)' "$CATALOG"; }
 target_jar(){ local item="$1" id instance; id="$(jq -r '.id' <<<"$item")"; instance="$(jq -r '.instance' <<<"$item")"; printf '%s/%s/plugins/%s.jar' "$INSTANCES_DIR" "$instance" "$id"; }
 render_internal_config(){
@@ -43,9 +44,11 @@ build_local_maven(){
 build_git_gradle(){
   local item="$1" id repo ref task glob dir artifact
   id="$(jq -r '.id' <<<"$item")"; repo="$(jq -r '.source' <<<"$item")"; ref="$(jq -r '.ref' <<<"$item")"; task="$(jq -r '.build' <<<"$item")"; glob="$(jq -r '.artifact_glob' <<<"$item")"; dir="$BUILD_ROOT/$id"
+  [[ -f "$GRADLE_COMPAT" ]] || die "Falta el resolver Gradle PNX: $GRADLE_COMPAT"
   rm -rf "$dir"; git clone -q --filter=blob:none "$repo" "$dir"; (cd "$dir" && git checkout -q --detach "$ref")
   [[ "$(git -C "$dir" rev-parse HEAD)" == "$ref" ]] || die "$id no quedó fijado en $ref"
-  chmod +x "$dir/gradlew"; (cd "$dir" && ./gradlew --no-daemon --console=plain clean "$task")
+  chmod +x "$dir/gradlew"
+  (cd "$dir" && ./gradlew --no-daemon --console=plain --init-script "$GRADLE_COMPAT" clean "$task")
   artifact="$(find "$dir" -path "$dir/$glob" -type f -name '*.jar' | head -n1)"
   [[ -n "$artifact" && -f "$artifact" ]] || die "No se encontró artefacto de $id ($glob)"
   printf '%s' "$artifact"
