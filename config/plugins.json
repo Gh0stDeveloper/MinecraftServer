@@ -46,6 +46,7 @@
       "license": "NOASSERTION",
       "redistribute": false,
       "auto_install": false,
+      "conflicts": ["nexora-bedwars"],
       "description": "Fallback upstream compatible con PNX. No se activa junto con NexoraBedWars.",
       "source": "https://github.com/SilentWolf6662/SilentBedwars.git",
       "minecraft": "26.40",
