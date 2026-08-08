@@ -14,7 +14,19 @@ function safeName(name) {
   return `"${String(name).replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`;
 }
 
-function transfer(player, port) {
+function modeReady(mode) {
+  return NETWORK.ready?.[mode] !== false;
+}
+
+function modeSuffix(mode) {
+  return modeReady(mode) ? "§aLISTO" : "§6PREPARANDO MAPA";
+}
+
+function transfer(player, mode, port) {
+  if (!modeReady(mode)) {
+    player.sendMessage(`§e${NPC[mode] ?? mode} todavía no está habilitado. §7El administrador debe terminar/importar su mapa.`);
+    return;
+  }
   try {
     player.dimension.runCommand(`transfer ${safeName(player.name)} ${NETWORK.host} ${port}`);
   } catch (error) {
@@ -25,18 +37,18 @@ function transfer(player, port) {
 async function showMainMenu(player) {
   const result = await new ActionFormData()
     .title("§l§bBEDROCK NETWORK")
-    .body("Selecciona un mundo o minijuego.")
-    .button("§aSurvival\n§7Mundo principal")
-    .button("§cPvP\n§71v1 · 2v2 · 4v4")
-    .button("§eBedWars\n§7Solo · Duo · Escuadra")
-    .button("§dSkyWars\n§7Solo · Duo · Escuadra")
+    .body(`§7Servidor: §f${NETWORK.host}\n§7Selecciona un mundo o minijuego.`)
+    .button(`§aSurvival\n§7Mundo principal · ${modeSuffix("survival")}`)
+    .button(`§cPvP\n§71v1 · 2v2 · 4v4 · ${modeSuffix("pvp")}`)
+    .button(`§eBedWars\n§7Equipos · ${modeSuffix("bedwars")}`)
+    .button(`§dSkyWars\n§7Mapas rotativos · ${modeSuffix("skywars")}`)
     .show(player);
 
   if (result.canceled) return;
-  if (result.selection === 0) transfer(player, NETWORK.survival);
-  if (result.selection === 1) transfer(player, NETWORK.pvp);
-  if (result.selection === 2) transfer(player, NETWORK.bedwars);
-  if (result.selection === 3) transfer(player, NETWORK.skywars);
+  if (result.selection === 0) transfer(player, "survival", NETWORK.survival);
+  if (result.selection === 1) transfer(player, "pvp", NETWORK.pvp);
+  if (result.selection === 2) transfer(player, "bedwars", NETWORK.bedwars);
+  if (result.selection === 3) transfer(player, "skywars", NETWORK.skywars);
 }
 
 world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
@@ -47,6 +59,9 @@ world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
       player.runCommand("effect @s resistance infinite 255 true");
       player.runCommand("effect @s saturation infinite 1 true");
       player.sendMessage("§bBienvenido. §fUsa los NPC o el menú para elegir servidor.");
+      if (!modeReady("bedwars") || !modeReady("skywars")) {
+        player.sendMessage("§7Las modalidades en preparación aparecen bloqueadas para evitar enviarte a un servidor sin mapa.");
+      }
     } catch {}
   });
 });
@@ -63,10 +78,10 @@ world.afterEvents.playerInteractWithEntity.subscribe((event) => {
   const { player, target } = event;
   const name = (target.nameTag ?? "").trim().toLowerCase();
   system.run(() => {
-    if (name === NPC.survival.toLowerCase()) transfer(player, NETWORK.survival);
-    else if (name === NPC.pvp.toLowerCase()) transfer(player, NETWORK.pvp);
-    else if (name === NPC.bedwars.toLowerCase()) transfer(player, NETWORK.bedwars);
-    else if (name === NPC.skywars.toLowerCase()) transfer(player, NETWORK.skywars);
+    if (name === NPC.survival.toLowerCase()) transfer(player, "survival", NETWORK.survival);
+    else if (name === NPC.pvp.toLowerCase()) transfer(player, "pvp", NETWORK.pvp);
+    else if (name === NPC.bedwars.toLowerCase()) transfer(player, "bedwars", NETWORK.bedwars);
+    else if (name === NPC.skywars.toLowerCase()) transfer(player, "skywars", NETWORK.skywars);
   });
 });
 
