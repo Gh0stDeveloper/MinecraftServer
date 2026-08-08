@@ -10,7 +10,7 @@ jobs:
   validate:
     name: Validate hybrid project
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
@@ -70,37 +70,52 @@ jobs:
           for _ in {1..20}; do curl -fsS http://127.0.0.1:18080/healthz >/dev/null && break; sleep .25; done
           curl -fsS http://127.0.0.1:18080/healthz | python3 -c 'import json,sys; assert json.load(sys.stdin)["ok"] is True'
           curl -fsS http://127.0.0.1:18080/api/status | python3 -c 'import json,sys; d=json.load(sys.stdin); assert len(d["servers"])==5; e={x["id"]:x["engine"] for x in d["servers"]}; assert e=={"lobby":"bds","survival":"bds","pvp":"pnx","bedwars":"pnx","skywars":"pnx"}'
-  plugin-compatibility:
-    name: Build pinned third-party minigame plugins
+
+  bedwars-compatibility:
+    name: Build pinned BedWars plugin
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
-      - name: Build SilentBedwars at pinned commit
+      - name: Build SilentBedwars against current PowerNukkitX API
         shell: bash
         run: |
           set -euo pipefail
           git clone -q https://github.com/SilentWolf6662/SilentBedwars.git /tmp/bedwars
           git -C /tmp/bedwars checkout -q --detach e441c2f96619fcc20ee382ee2a44017cfcb3fd35
+          test "$(git -C /tmp/bedwars rev-parse HEAD)" = e441c2f96619fcc20ee382ee2a44017cfcb3fd35
           chmod +x /tmp/bedwars/gradlew
-          (cd /tmp/bedwars && ./gradlew --no-daemon --console=plain clean shadowJar)
+          (cd /tmp/bedwars && ./gradlew --no-daemon --console=plain --init-script "$GITHUB_WORKSPACE/config/pnx-gradle.init.gradle" clean shadowJar)
           find /tmp/bedwars/build/libs -name 'SilentBedwars-*.jar' -type f | grep -q .
-      - name: Build PowerSkywars at pinned commit
+
+  skywars-compatibility:
+    name: Build pinned SkyWars plugin
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Build PowerSkywars against current PowerNukkitX API
         shell: bash
         run: |
           set -euo pipefail
           git clone -q https://github.com/VenityNetwork/PowerSkywars.git /tmp/skywars
           git -C /tmp/skywars checkout -q --detach 611466227c6a6435f527dc970d241f580dea090d
+          test "$(git -C /tmp/skywars rev-parse HEAD)" = 611466227c6a6435f527dc970d241f580dea090d
           chmod +x /tmp/skywars/gradlew
-          (cd /tmp/skywars && ./gradlew --no-daemon --console=plain clean jar)
+          (cd /tmp/skywars && ./gradlew --no-daemon --console=plain --init-script "$GITHUB_WORKSPACE/config/pnx-gradle.init.gradle" clean jar)
           find /tmp/skywars/build/libs -name '*.jar' -type f | grep -q .
+
   package:
     name: Package deployable project
-    needs: [validate, plugin-compatibility]
+    needs: [validate, bedwars-compatibility, skywars-compatibility]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
