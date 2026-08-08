@@ -4,6 +4,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TEST_ROOT="$(mktemp -d /tmp/nexora-pnx-config.XXXXXX)"
 trap 'rm -rf "$TEST_ROOT"' EXIT
 
+if ! getent group bedrock >/dev/null 2>&1; then groupadd --system bedrock; fi
+if ! id bedrock >/dev/null 2>&1; then useradd --system --gid bedrock --no-create-home --shell /usr/sbin/nologin bedrock; fi
+
 BEDROCK_ROOT="$TEST_ROOT" NO_COLOR=1 bash "$ROOT/scripts/engine-manager.sh" prepare >/dev/null
 
 check_instance(){
