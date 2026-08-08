@@ -2,6 +2,9 @@
 from __future__ import annotations
 import ipaddress
 import json
+import os
+import subprocess
+import tempfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parent.parent
 EXPECTED_PORTS={"lobby":"19132","survival":"19133","pvp":"19134","bedwars":"19135","skywars":"19136"}
@@ -74,5 +77,25 @@ def validate_required_files():
         "pnx-plugins/nexora-skywars/src/main/resources/plugin.yml",
     ]
     for rel in required: assert (ROOT/rel).is_file(),rel
-def main(): validate_instances(); validate_deployment(); validate_engines(); validate_json(); validate_manifests(); validate_plugins(); validate_survival_isolation(); validate_required_files(); print("All native-minigame BedrockNetwork checks passed.")
+def validate_empty_service_state():
+    # Reproduce the VPS failure: every bedrock@ service is inactive and the
+    # updater captures active_instances inside a shell running with `set -e`.
+    # An empty list must be success, not a silent exit before BDS download.
+    with tempfile.TemporaryDirectory() as td:
+        bindir=Path(td)
+        systemctl=bindir/"systemctl"
+        systemctl.write_text("#!/usr/bin/env bash\nif [[ ${1:-} == is-active ]]; then exit 3; fi\nexit 0\n", encoding="utf-8")
+        systemctl.chmod(0o755)
+        envp=os.environ.copy()
+        envp["PATH"]=f"{bindir}:{envp['PATH']}"
+        command=f'''set -euo pipefail
+source "{ROOT}/scripts/lib.sh"
+out="$(active_instances)"
+[[ -z "$out" ]]
+none="$(instances_by_engine impossible)"
+[[ -z "$none" ]]
+'''
+        subprocess.run(["bash","-c",command],check=True,env=envp,cwd=ROOT)
+def main():
+    validate_instances(); validate_deployment(); validate_engines(); validate_json(); validate_manifests(); validate_plugins(); validate_survival_isolation(); validate_required_files(); validate_empty_service_state(); print("All native-minigame BedrockNetwork checks passed.")
 if __name__=="__main__": main()
