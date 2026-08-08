@@ -22,7 +22,9 @@ domain_ok(){ [[ -n "${PUBLIC_DOMAIN:-}" && -n "${PUBLIC_IP:-}" ]] && resolved_ip
 apply_host(){
   local host="$1" level was_active=0
   systemctl is-active --quiet bedrock@lobby.service 2>/dev/null && was_active=1 || true
-  if grep -q '^PUBLIC_HOST=' "$CONFIG_FILE"; then sed -i "s|^PUBLIC_HOST=.*|PUBLIC_HOST=$host|" "$CONFIG_FILE"; else printf '\nPUBLIC_HOST=%s\n' "$host" >> "$CONFIG_FILE"; fi
+  mkdir -p "$CONFIG_DIR"
+  if grep -q '^PUBLIC_HOST=' "$CONFIG_FILE" 2>/dev/null; then sed -i "s|^PUBLIC_HOST=.*|PUBLIC_HOST=$host|" "$CONFIG_FILE"; else printf '\nPUBLIC_HOST=%s\n' "$host" >> "$CONFIG_FILE"; fi
+  chown root:bedrock "$CONFIG_FILE"; chmod 0640 "$CONFIG_FILE"
   source_config
   "$APP_DIR/scripts/render-lobby-config.sh"
   level="$(awk -F= '$1=="level-name"{print substr($0,index($0,"=")+1)}' "$INSTANCES_DIR/lobby/server.properties" 2>/dev/null || true)"
