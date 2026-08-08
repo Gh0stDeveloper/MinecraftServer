@@ -31,10 +31,10 @@ Jugador Bedrock
        +--> Survival :19133  BDS oficial, sin plugins, cheats=false
        +--> PvP      :19134  PowerNukkitX + NexoraPractice 0.2
        +--> BedWars  :19135  PowerNukkitX + NexoraBedWars 0.1
-       +--> SkyWars  :19136  PowerNukkitX + PowerSkywars
+       +--> SkyWars  :19136  PowerNukkitX + NexoraSkyWars 0.1
 ```
 
-Lobby y Survival están bloqueados a BDS. PowerNukkitX se usa solo para minijuegos.
+Lobby y Survival están bloqueados a BDS. Los tres minijuegos usan motores Nexora propios sobre PowerNukkitX y generan sus arenas automáticamente.
 
 ## Survival y logros
 
@@ -78,8 +78,6 @@ sudo mcserver import-survival "/ruta/a/TuMundo"
 
 ## PvP — NexoraPractice 0.2
 
-No requiere mapas externos.
-
 ```text
 /pvp solo    -> 1v1
 /pvp duo     -> 2v2
@@ -89,11 +87,9 @@ No requiere mapas externos.
 /lobby
 ```
 
-Incluye colas, hasta 8 arenas, equipos automáticos, kit PvP, friendly-fire bloqueado, espectador, vacío, `first-to-3` y reutilización automática de arena.
+No requiere mapas externos. Incluye colas, hasta 8 arenas, equipos automáticos, kit PvP, friendly-fire bloqueado, espectador, vacío, `first-to-3` y reutilización automática.
 
 ## BedWars — NexoraBedWars 0.1
-
-BedWars ahora usa un motor **propio y autogenerado**; tampoco requiere mapas externos.
 
 ```text
 /bw solo     -> 1v1
@@ -105,13 +101,9 @@ BedWars ahora usa un motor **propio y autogenerado**; tampoco requiere mapas ext
 /lobby
 ```
 
-Cada arena tiene dos bases, centro y vacío para puentes. Cada equipo posee una cama-núcleo:
+Genera bases, centro y vacío para puentes. Cada equipo tiene una cama-núcleo: mientras viva hay respawn; destruida, la próxima muerte es definitiva. La estructura está protegida y los bloques temporales se limpian al terminar.
 
-- cama viva -> el jugador reaparece;
-- cama destruida -> la próxima muerte es definitiva;
-- último equipo con jugadores vivos -> victoria.
-
-Recursos y tienda:
+Tienda:
 
 ```text
 4 hierro  -> 16 bloques del equipo
@@ -120,24 +112,41 @@ Recursos y tienda:
 8 oro     -> arco + flechas
 ```
 
-La estructura de la arena está protegida; solo pueden romperse bloques colocados durante la partida y la cama rival. Al terminar, se eliminan los puentes/bloques temporales y la arena se reutiliza.
-
-SilentBedwars permanece en `config/plugins.json` únicamente como fallback manual:
+SilentBedwars queda como fallback manual:
 
 ```bash
 sudo mcserver plugins install silentbedwars
 ```
 
-El administrador retira automáticamente `nexora-bedwars.jar` para evitar ejecutar ambos a la vez. Para volver:
+Para volver:
 
 ```bash
 sudo mcserver plugins install nexora-bedwars
 sudo mcserver minigames prepare
 ```
 
-## SkyWars
+## SkyWars — NexoraSkyWars 0.1
 
-PowerSkywars usa mapas administrados:
+SkyWars también es ahora **propio y autogenerado**.
+
+```text
+/sw solo     -> 4 equipos de 1 (4 jugadores)
+/sw duo      -> 4 equipos de 2 (8 jugadores)
+/sw squad    -> 4 equipos de 4 (16 jugadores)
+/sw leave
+/sw status
+/lobby
+```
+
+Cada arena genera cuatro islas —Rojo, Azul, Verde y Amarillo— más un centro. Los jugadores reciben bloques para puentes y pueden abrir loot-crates de isla y crates de mejor nivel en el centro. No hay respawn: muerte o vacío elimina al jugador; el último equipo vivo gana. Puentes, bloques y crates se restauran al terminar.
+
+PowerSkywars queda como fallback manual:
+
+```bash
+sudo mcserver plugins install powerskywars
+```
+
+Solo en ese modo legacy se usan mapas externos:
 
 ```bash
 sudo mcserver minigames import-skywars Islas1 "/ruta/Islas1" \
@@ -145,7 +154,12 @@ sudo mcserver minigames import-skywars Islas1 "/ruta/Islas1" \
   --mid "0,68,0"
 ```
 
-El sistema valida el mundo, hace backup, registra las coordenadas y genera `maps_config.yml`.
+Para regresar al motor propio:
+
+```bash
+sudo mcserver plugins install nexora-skywars
+sudo mcserver minigames prepare
+```
 
 ## Estado de minijuegos
 
@@ -155,9 +169,7 @@ sudo mcserver minigames verify
 sudo mcserver plugins doctor
 ```
 
-El lobby usa `NETWORK.ready`: PvP y BedWars quedan disponibles por sus motores autogenerados; SkyWars solo cuando tiene al menos un mapa válido.
-
-`mcserver minigames import-bedwars` se conserva exclusivamente para el fallback legacy SilentBedwars.
+Con los motores predeterminados, PvP, BedWars y SkyWars quedan disponibles sin importar mapas. Los importadores se mantienen exclusivamente para los fallbacks upstream.
 
 ## Red y DuckDNS
 
@@ -202,15 +214,15 @@ Plugins:
 sudo mcserver plugins list
 sudo mcserver plugins doctor
 sudo mcserver plugins sync
-sudo mcserver plugins install powerskywars
 ```
 
 | Instancia | Plugin predeterminado | Fuente |
 |---|---|---|
 | PvP | NexoraPractice 0.2 | propio, Maven |
 | BedWars | NexoraBedWars 0.1 | propio, Maven |
-| SkyWars | PowerSkywars | upstream fijado, Gradle |
+| SkyWars | NexoraSkyWars 0.1 | propio, Maven |
 | BedWars fallback | SilentBedwars | upstream fijado, manual |
+| SkyWars fallback | PowerSkywars | upstream fijado, manual |
 
 ## Actualizaciones
 
@@ -251,7 +263,7 @@ sudo mcserver web https minecraftserver.duckdns.org TU_CORREO
 
 ## GitHub Actions
 
-CI valida configuración, aislamiento de Survival, sintaxis, resolver BDS, web, NexoraPractice, **NexoraBedWars**, compatibilidad del fallback SilentBedwars, PowerSkywars y el artifact desplegable.
+CI valida configuración, aislamiento de Survival, sintaxis, resolver BDS, web, los tres motores Nexora nativos, compatibilidad de SilentBedwars/PowerSkywars como fallbacks y el artifact desplegable.
 
 Documentación:
 
