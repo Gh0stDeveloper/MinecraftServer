@@ -23,7 +23,7 @@ activate_release(){
 validate_pnx_jar(){
   local jar_file="$1"
   [[ -s "$jar_file" ]] || return 1
-  jar tf "$jar_file" 2>/dev/null | grep -Fxq 'org/powernukkitx/JarStart.class'
+  python3 "$SCRIPT_DIR/pnx-jar-validator.py" "$jar_file"
 }
 
 gradle_version(){
@@ -71,7 +71,7 @@ build_pnx_from_source(){
 
   built="$src/build/powernukkitx.jar"
   [[ -f "$built" ]] || { rm -rf "$src"; die "El build oficial PNX terminó sin generar build/powernukkitx.jar."; }
-  validate_pnx_jar "$built" || { rm -rf "$src"; die "El shaded JAR construido no contiene org.powernukkitx.JarStart."; }
+  validate_pnx_jar "$built" || { rm -rf "$src"; die "El shaded JAR construido no contiene un Main-Class PowerNukkitX válido."; }
   install -m 0644 "$built" "$output"
   rm -rf "$src"
   ok "PowerNukkitX $PNX_EXPECTED_VERSION compilado desde el commit oficial ${PNX_SOURCE_REF:0:12}"
@@ -98,6 +98,18 @@ version="${version:-$PNX_EXPECTED_VERSION}"
 [[ "$version" == "$PNX_EXPECTED_VERSION" ]] || die "El metadata PNX fijado anuncia $version, esperado $PNX_EXPECTED_VERSION."
 [[ -z "$mc_version" || "$mc_version" == "$PNX_EXPECTED_MINECRAFT" ]] || die "PowerNukkitX fijado anuncia Bedrock $mc_version, esperado $PNX_EXPECTED_MINECRAFT."
 ok "PowerNukkitX $version compatible con Bedrock $PNX_EXPECTED_MINECRAFT"
+
+# A source-built release pinned to the same upstream commit is already the exact
+# runtime we would build again. Validate it and reuse it instead of invoking
+# Gradle on every bootstrap while the upstream snapshot asset remains missing.
+if [[ "$old" != none && -f "$PNX_CURRENT_LINK/powernukkitx-shaded.jar" ]]; then
+  installed_ref="$(cat "$PNX_CURRENT_LINK/upstream-commit" 2>/dev/null || true)"
+  installed_kind="$(cat "$PNX_CURRENT_LINK/source-kind" 2>/dev/null || true)"
+  if [[ "$installed_ref" == "$PNX_SOURCE_REF" && "$installed_kind" == source-* ]] && validate_pnx_jar "$PNX_CURRENT_LINK/powernukkitx-shaded.jar"; then
+    ok "PowerNukkitX ya está instalado desde el commit fijado ${PNX_SOURCE_REF:0:12}; reutilizando release"
+    exit 0
+  fi
+fi
 
 host="$(python3 - "$PNX_DOWNLOAD_URL" <<'PY'
 from urllib.parse import urlparse
