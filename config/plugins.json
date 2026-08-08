@@ -18,8 +18,25 @@
       "api": "2.0.0"
     },
     {
+      "id": "nexora-bedwars",
+      "name": "Nexora BedWars",
+      "instance": "bedwars",
+      "engine": "pnx",
+      "source_type": "local-maven",
+      "source": "pnx-plugins/nexora-bedwars",
+      "artifact": "target/nexora-bedwars-0.1.0.jar",
+      "license": "PROJECT",
+      "ref": "project",
+      "auto_install": true,
+      "conflicts": ["silentbedwars"],
+      "description": "Motor BedWars propio con Solo/Duo/Escuadra, arenas nativas, camas-núcleo, recursos, tienda, puentes, respawn y eliminación final.",
+      "version": "0.1.0",
+      "minecraft": "26.40",
+      "api": "2.0.0"
+    },
+    {
       "id": "silentbedwars",
-      "name": "SilentBedwars",
+      "name": "SilentBedwars (fallback)",
       "instance": "bedwars",
       "engine": "pnx",
       "source_type": "git-gradle",
@@ -28,8 +45,8 @@
       "artifact_glob": "build/libs/SilentBedwars-*.jar",
       "license": "NOASSERTION",
       "redistribute": false,
-      "auto_install": true,
-      "description": "BedWars para PowerNukkitX. Se compila directamente desde el repositorio del autor; el proyecto no redistribuye su código ni binario.",
+      "auto_install": false,
+      "description": "Fallback upstream compatible con PNX. No se activa junto con NexoraBedWars.",
       "source": "https://github.com/SilentWolf6662/SilentBedwars.git",
       "minecraft": "26.40",
       "api": "2.0.0"
