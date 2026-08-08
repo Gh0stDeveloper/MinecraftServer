@@ -36,7 +36,17 @@ render_internal_config(){
   if grep -q '^lobby-host:' "$cfg"; then sed -i "s|^lobby-host:.*|lobby-host: \"${PUBLIC_HOST}\"|" "$cfg"; else printf '\nlobby-host: "%s"\n' "$PUBLIC_HOST" >> "$cfg"; fi
   if grep -q '^lobby-port:' "$cfg"; then sed -i "s|^lobby-port:.*|lobby-port: ${LOBBY_PORT}|" "$cfg"; else printf 'lobby-port: %s\n' "$LOBBY_PORT" >> "$cfg"; fi
 }
-build_local_maven(){ local item="$1" src artifact; src="$APP_DIR/$(jq -r '.source' <<<"$item")"; artifact="$(jq -r '.artifact' <<<"$item")"; [[ -f "$src/pom.xml" ]] || die "Proyecto Maven inexistente: $src"; (cd "$src" && mvn -q -DskipTests package); [[ -f "$src/$artifact" ]] || die "No se creó $src/$artifact"; printf '%s' "$src/$artifact"; }
+build_local_maven(){
+  local item="$1" src artifact api_jar
+  src="$APP_DIR/$(jq -r '.source' <<<"$item")"; artifact="$(jq -r '.artifact' <<<"$item")"
+  api_jar="$PNX_CURRENT_LINK/powernukkitx-shaded.jar"
+  [[ -f "$src/pom.xml" ]] || die "Proyecto Maven inexistente: $src"
+  [[ -s "$api_jar" ]] || die "Runtime PowerNukkitX no disponible para compilar plugins. Ejecuta primero: sudo mcserver update pnx"
+  python3 "$APP_DIR/scripts/pnx-jar-validator.py" "$api_jar" >/dev/null || die "El runtime PNX activo no es válido para compilar plugins."
+  (cd "$src" && PNX_API_JAR="$api_jar" mvn -q -DskipTests package)
+  [[ -f "$src/$artifact" ]] || die "No se creó $src/$artifact"
+  printf '%s' "$src/$artifact"
+}
 build_git_gradle(){
   local item="$1" id repo ref task glob dir artifact
   id="$(jq -r '.id' <<<"$item")"; repo="$(jq -r '.source' <<<"$item")"; ref="$(jq -r '.ref' <<<"$item")"; task="$(jq -r '.build' <<<"$item")"; glob="$(jq -r '.artifact_glob' <<<"$item")"; dir="$BUILD_ROOT/$id"
