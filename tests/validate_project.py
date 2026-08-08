@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parent.parent
 EXPECTED_PORTS={"lobby":"19132","survival":"19133","pvp":"19134","bedwars":"19135","skywars":"19136"}
-NATIVE={"nexora-practice":("0.2.1","3.0.2"),"nexora-bedwars":("0.1.1","3.0.2"),"nexora-skywars":("0.1.1","3.0.2")}
+NATIVE={"nexora-practice":("0.2.0","3.0.2"),"nexora-bedwars":("0.1.0","3.0.2"),"nexora-skywars":("0.1.0","3.0.2")}
 def props(path:Path)->dict[str,str]:
     out={}
     for raw in path.read_text(encoding="utf-8").splitlines():
