@@ -1,7 +1,7 @@
 name: Bedrock Network CI
 on:
   push:
-    branches: [main, "agent/**"]
+    branches: [main, "agent/**", "fix/**"]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -35,7 +35,7 @@ jobs:
           source config/network.env
           source config/engines.env
           [[ "$PUBLIC_IP" == "147.224.196.17" ]]
-          [[ "$PUBLIC_DOMAIN" == "minecraftserver.duckdns.org" ]]
+          [[ "$PUBLIC_DOMAIN" == "minecraftnexora.duckdns.org" ]]
           [[ "$SURVIVAL_ENGINE" == bds ]]
           [[ "$PVP_ENGINE" == pnx && "$BEDWARS_ENGINE" == pnx && "$SKYWARS_ENGINE" == pnx ]]
       - name: Test BDS update resolver
@@ -47,6 +47,30 @@ jobs:
           bash -n mcserver
           bash -n install.sh
           while IFS= read -r -d '' script; do bash -n "$script"; done < <(find scripts -type f -name '*.sh' -print0)
+      - name: Validate Survival ZIP and MCWORLD import detection
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import zipfile
+          from pathlib import Path
+          root=Path('/tmp/world-src/MiMundo')
+          (root/'db').mkdir(parents=True)
+          (root/'level.dat').write_bytes(b'bedrock-test')
+          (root/'db'/'000001.ldb').write_bytes(b'test')
+          for output in ('/tmp/MiMundo.zip','/tmp/MiMundo.mcworld'):
+              with zipfile.ZipFile(output,'w',zipfile.ZIP_DEFLATED) as z:
+                  for p in root.rglob('*'):
+                      if p.is_file(): z.write(p, Path('MiMundo')/p.relative_to(root))
+          with zipfile.ZipFile('/tmp/unsafe.zip','w') as z:
+              z.writestr('../evil','x')
+          PY
+          bash scripts/import-survival.sh --check /tmp/MiMundo.zip
+          bash scripts/import-survival.sh --check /tmp/MiMundo.mcworld
+          if bash scripts/import-survival.sh --check /tmp/unsafe.zip; then
+            echo 'Unsafe archive was accepted' >&2
+            exit 1
+          fi
       - name: Validate JavaScript syntax
         shell: bash
         run: |
@@ -68,7 +92,7 @@ jobs:
           test -f pnx-plugins/nexora-skywars/target/nexora-skywars-0.1.0.jar
       - name: Validate Survival achievement safety
         run: bash scripts/check-survival-safety.sh instances/survival/server.properties
-      - name: Validate minigame safety gates
+      - name: Validate minigame and web safety gates
         shell: bash
         run: |
           set -euo pipefail
@@ -78,6 +102,8 @@ jobs:
           grep -q 'NexoraSkyWars' scripts/minigame-manager.sh
           grep -q 'conflicts' config/plugins.json
           grep -q 'modeReady' addons/lobby_bp/scripts/main.js
+          grep -q 'require_correct_dns' scripts/web-setup.sh
+          grep -q 'survival-pending-import' scripts/network-manager.sh
       - name: Smoke test public website
         shell: bash
         run: |
