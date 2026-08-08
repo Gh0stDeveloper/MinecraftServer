@@ -60,6 +60,7 @@ def validate_plugins():
             plugin=(ROOT/item["source"]/"src/main/resources/plugin.yml").read_text(encoding="utf-8")
             pom=(ROOT/item["source"]/"pom.xml").read_text(encoding="utf-8")
             assert f'version: "{version}"' in plugin; assert f'api: "{api}"' in plugin; assert "<version>3.0.2</version>" in pom
+            assert "<scope>system</scope>" in pom; assert "${env.PNX_API_JAR}" in pom
             assert item["artifact"].endswith(f"-{version}.jar")
         else: raise AssertionError(item["source_type"])
     assert by_id["nexora-practice"]["auto_install"] is True; assert by_id["nexora-bedwars"]["auto_install"] is True; assert by_id["nexora-skywars"]["auto_install"] is True
