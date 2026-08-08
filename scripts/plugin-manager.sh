@@ -25,13 +25,13 @@ need_tools(){ command -v jq >/dev/null || die "Falta jq."; command -v git >/dev/
 row(){ local id="$1"; jq -cer --arg id "$id" '.plugins[] | select(.id == $id)' "$CATALOG"; }
 target_jar(){ local item="$1" id instance; id="$(jq -r '.id' <<<"$item")"; instance="$(jq -r '.instance' <<<"$item")"; printf '%s/%s/plugins/%s.jar' "$INSTANCES_DIR" "$instance" "$id"; }
 render_internal_config(){
-  local id="$1" instance="$2"
+  local id="$1" instance="$2" folder cfg defaults
   [[ "$id" == nexora-practice ]] || return 0
-  mkdir -p "$INSTANCES_DIR/$instance/plugins/NexoraPractice"
-  cat > "$INSTANCES_DIR/$instance/plugins/NexoraPractice/config.yml" <<EOF2
-lobby-host: "${PUBLIC_HOST}"
-lobby-port: ${LOBBY_PORT}
-EOF2
+  folder="$INSTANCES_DIR/$instance/plugins/NexoraPractice"; cfg="$folder/config.yml"; defaults="$APP_DIR/pnx-plugins/nexora-practice/src/main/resources/config.yml"
+  mkdir -p "$folder"
+  [[ -f "$cfg" ]] || cp "$defaults" "$cfg"
+  if grep -q '^lobby-host:' "$cfg"; then sed -i "s|^lobby-host:.*|lobby-host: \"${PUBLIC_HOST}\"|" "$cfg"; else printf '\nlobby-host: "%s"\n' "$PUBLIC_HOST" >> "$cfg"; fi
+  if grep -q '^lobby-port:' "$cfg"; then sed -i "s|^lobby-port:.*|lobby-port: ${LOBBY_PORT}|" "$cfg"; else printf 'lobby-port: %s\n' "$LOBBY_PORT" >> "$cfg"; fi
 }
 build_local_maven(){
   local item="$1" src artifact
