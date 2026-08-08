@@ -16,7 +16,7 @@ HELP
 }
 
 prop_from_template(){
-  local instance="$1" key="$2" file="$APP_DIR/instances/$instance/server.properties"
+  local file="$1" key="$2"
   awk -F= -v key="$key" '$1==key{print substr($0,index($0,"=")+1); exit}' "$file"
 }
 
@@ -25,26 +25,26 @@ prepare_pnx(){
   instance="$1"
   target="$INSTANCES_DIR/$instance"
   template="$APP_DIR/instances/$instance/server.properties"
+  [[ -f "$template" ]] || template="$SCRIPT_DIR/../instances/$instance/server.properties"
   [[ "$instance" == pvp || "$instance" == bedwars || "$instance" == skywars ]] || die "Instancia PNX inválida: $instance"
-  [[ -f "$template" ]] || die "Falta plantilla administrada: $template"
+  [[ -f "$template" ]] || die "Falta plantilla administrada para $instance"
 
-  port="$(prop_from_template "$instance" server-port)"
-  level="$(prop_from_template "$instance" level-name)"
-  motd="$(prop_from_template "$instance" server-name)"
-  max_players="$(prop_from_template "$instance" max-players)"
-  allow_list="$(prop_from_template "$instance" allow-list)"
+  port="$(prop_from_template "$template" server-port)"
+  level="$(prop_from_template "$template" level-name)"
+  motd="$(prop_from_template "$template" server-name)"
+  max_players="$(prop_from_template "$template" max-players)"
+  allow_list="$(prop_from_template "$template" allow-list)"
   [[ "$port" =~ ^[0-9]+$ && "$port" -ge 1 && "$port" -le 65535 ]] || die "Puerto PNX inválido para $instance: ${port:-vacío}"
   [[ -n "$level" ]] || die "level-name vacío para $instance"
   [[ "$max_players" =~ ^[0-9]+$ ]] || max_players=20
   [[ "$allow_list" == true || "$allow_list" == false ]] || allow_list=false
 
   mkdir -p "$target/plugins" "$target/worlds"
-
-  # Las instancias PNX son administradas por el proyecto. Sincronizamos también
-  # server.properties para que diagnósticos/herramientas externas vean los mismos
-  # valores, aunque PNX 3.x toma puerto, MOTD y nivel desde pnx.yml.
   install -m 0644 "$template" "$target/server.properties"
 
+  # PowerNukkitX 3.x toma los valores de red y nivel desde pnx.yml. La antigua
+  # configuración solo definía language y dejaba port/defaultLevelName en sus
+  # defaults (19132/world), provocando colisión con el Lobby.
   cat > "$target/pnx.yml" <<YAML
 settings:
   ip: 0.0.0.0
