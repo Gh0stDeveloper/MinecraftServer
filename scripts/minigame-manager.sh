@@ -43,8 +43,14 @@ backup_dir(){
 }
 
 render_skywars_config(){
-  local out="$INSTANCES_DIR/skywars/plugins/PowerSkywars/maps_config.yml" name mid
+  local out="$INSTANCES_DIR/skywars/plugins/PowerSkywars/maps_config.yml" name mid count
   mkdir -p "$(dirname "$out")"
+  count="$(jq '.maps|length' "$SKY_MANIFEST")"
+  if [[ "$count" -eq 0 ]]; then
+    printf '[]\n' > "$out"
+    chown -R bedrock:bedrock "$INSTANCES_DIR/skywars/plugins/PowerSkywars" 2>/dev/null || true
+    return
+  fi
   : > "$out"
   while IFS= read -r row; do
     name="$(jq -r '.name' <<<"$row")"
@@ -59,12 +65,13 @@ render_skywars_config(){
 }
 
 refresh_lobby(){
+  local level was_active=0
+  remember_active lobby && was_active=1 || true
   "$APP_DIR/scripts/render-lobby-config.sh" || true
-  local level
   level="$(awk -F= '$1=="level-name"{print substr($0,index($0,"=")+1)}' "$INSTANCES_DIR/lobby/server.properties" 2>/dev/null || true)"
   if [[ -n "$level" && -d "$INSTANCES_DIR/lobby/worlds/$level" ]]; then
     "$APP_DIR/scripts/install-addon.sh" lobby "$ROOT/addons/lobby_bp" >/dev/null || true
-    systemctl restart bedrock@lobby.service 2>/dev/null || true
+    ((was_active)) && systemctl restart bedrock@lobby.service 2>/dev/null || true
   fi
 }
 
@@ -145,12 +152,15 @@ import_skywars(){
 }
 
 remove_skywars(){
-  local name="$1" target="$INSTANCES_DIR/skywars/plugins/PowerSkywars/maps/$name" tmp
+  local name="$1" target="$INSTANCES_DIR/skywars/plugins/PowerSkywars/maps/$name" tmp was_active=0
   [[ "$name" =~ ^[A-Za-z0-9_-]+$ ]] || die 'Nombre inválido.'
+  remember_active skywars && was_active=1 || true
+  systemctl stop bedrock@skywars.service 2>/dev/null || true
   backup_dir "$target" "skywars-$name"
   rm -rf "$target"
   tmp="$(mktemp)"; jq --arg name "$name" '.maps=[.maps[] | select(.name != $name)]' "$SKY_MANIFEST" > "$tmp"; mv "$tmp" "$SKY_MANIFEST"
   render_skywars_config; refresh_lobby
+  ((was_active)) && systemctl start bedrock@skywars.service || true
   ok "Mapa SkyWars '$name' eliminado."
 }
 
