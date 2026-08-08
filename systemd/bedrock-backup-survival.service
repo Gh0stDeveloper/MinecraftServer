@@ -1,0 +1,6 @@
+[Unit]
+Description=Backup seguro del Survival Bedrock
+
+[Service]
+Type=oneshot
+ExecStart=/opt/bedrock-network/scripts/backup-survival.sh

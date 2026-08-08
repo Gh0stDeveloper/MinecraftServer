@@ -1,0 +1,28 @@
+# BDS runtime files
+bedrock_server
+bedrock_server_how_to.html
+libCrypto.so
+*.log
+
+# Generated worlds and runtime state
+instances/*/worlds/
+instances/*/behavior_packs/
+instances/*/resource_packs/
+instances/*/development_behavior_packs/
+instances/*/development_resource_packs/
+instances/*/*.db
+instances/*/Dedicated_Server.txt
+
+# Backups and downloaded server packages
+backups/
+*.zip
+*.tar.gz
+
+# Local configuration
+.env
+config/network.local.env
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,15 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Bedrock Network - BedWars",
+    "description": "BedWars queue and arena state framework.",
+    "uuid": "2fa78604-afe8-4950-94db-96fad4840b19",
+    "version": [0,1,0],
+    "min_engine_version": [1,26,40]
+  },
+  "modules": [{"type":"script","language":"javascript","uuid":"ce54b7c6-c005-4d15-9f0c-48de024daf2d","version":[0,1,0],"entry":"scripts/main.js"}],
+  "dependencies": [
+    {"module_name":"@minecraft/server","version":"2.8.0"},
+    {"module_name":"@minecraft/server-ui","version":"2.1.0"}
+  ]
+}
