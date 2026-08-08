@@ -18,10 +18,28 @@ ENGINES_FILE="$CONFIG_DIR/engines.env"
 CACHE_DIR="$ROOT/cache"
 INSTANCES=(lobby survival pvp bedwars skywars)
 
-log(){ printf '\033[1;36m[mcserver]\033[0m %s\n' "$*"; }
-ok(){ printf '\033[1;32m[OK]\033[0m %s\n' "$*"; }
-warn(){ printf '\033[1;33m[WARN]\033[0m %s\n' "$*" >&2; }
-die(){ printf '\033[1;31m[ERROR]\033[0m %s\n' "$*" >&2; exit 1; }
+_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$_LIB_DIR/ui.sh" ]]; then
+  # shellcheck source=ui.sh
+  source "$_LIB_DIR/ui.sh"
+elif [[ -f "$APP_DIR/scripts/ui.sh" ]]; then
+  source "$APP_DIR/scripts/ui.sh"
+else
+  ui_step(){ printf '[*] %s\n' "$*"; }
+  ui_ok(){ printf '[OK] %s\n' "$*"; }
+  ui_warn(){ printf '[!] %s\n' "$*" >&2; }
+  ui_error(){ printf '[X] %s\n' "$*" >&2; }
+  ui_note(){ printf '    %s\n' "$*"; }
+  ui_section(){ printf '\n== %s ==\n' "$*"; }
+  ui_banner(){ printf '\nMinecraft Bedrock Network - %s\n\n' "${1:-}"; }
+  ui_kv(){ printf '  %-16s %s\n' "$1" "$2"; }
+  ui_run_task(){ local label="$1"; shift; ui_step "$label"; "$@"; }
+fi
+
+log(){ ui_step "$*"; }
+ok(){ ui_ok "$*"; }
+warn(){ ui_warn "$*"; }
+die(){ ui_error "$*"; exit 1; }
 require_root(){ [[ ${EUID:-$(id -u)} -eq 0 ]] || die "Ejecuta con sudo/root."; }
 source_config(){
   local defaults="$APP_DIR/config/network.env"
@@ -40,7 +58,26 @@ source_config(){
   WEB_PORT="${WEB_PORT:-8080}"
   WEB_MAX_UPLOAD_MB="${WEB_MAX_UPLOAD_MB:-4096}"
 }
-source_engines(){ local defaults="$APP_DIR/config/engines.env"; [[ -f "$defaults" ]] || defaults="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/config/engines.env"; [[ -f "$defaults" ]] && source "$defaults"; [[ -f "$ENGINES_FILE" ]] && source "$ENGINES_FILE"; LOBBY_ENGINE="${LOBBY_ENGINE:-bds}"; SURVIVAL_ENGINE="${SURVIVAL_ENGINE:-bds}"; PVP_ENGINE="${PVP_ENGINE:-pnx}"; BEDWARS_ENGINE="${BEDWARS_ENGINE:-pnx}"; SKYWARS_ENGINE="${SKYWARS_ENGINE:-pnx}"; PNX_DOWNLOAD_URL="${PNX_DOWNLOAD_URL:-https://github.com/PowerNukkitX/PowerNukkitX/releases/download/snapshot/powernukkitx-shaded.jar}"; PNX_EXPECTED_MINECRAFT="${PNX_EXPECTED_MINECRAFT:-26.40}"; PNX_JAVA_MIN="${PNX_JAVA_MIN:-21}"; PNX_HEAP_MIN="${PNX_HEAP_MIN:-512M}"; PNX_HEAP_MAX="${PNX_HEAP_MAX:-2G}"; MANAGED_PLUGINS="${MANAGED_PLUGINS:-true}"; }
+source_engines(){
+  local defaults="$APP_DIR/config/engines.env"
+  [[ -f "$defaults" ]] || defaults="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/config/engines.env"
+  [[ -f "$defaults" ]] && source "$defaults"
+  [[ -f "$ENGINES_FILE" ]] && source "$ENGINES_FILE"
+  LOBBY_ENGINE="${LOBBY_ENGINE:-bds}"
+  SURVIVAL_ENGINE="${SURVIVAL_ENGINE:-bds}"
+  PVP_ENGINE="${PVP_ENGINE:-pnx}"
+  BEDWARS_ENGINE="${BEDWARS_ENGINE:-pnx}"
+  SKYWARS_ENGINE="${SKYWARS_ENGINE:-pnx}"
+  PNX_DOWNLOAD_URL="${PNX_DOWNLOAD_URL:-https://github.com/PowerNukkitX/PowerNukkitX/releases/download/snapshot/powernukkitx-shaded.jar}"
+  PNX_SOURCE_REPO="${PNX_SOURCE_REPO:-https://github.com/PowerNukkitX/PowerNukkitX.git}"
+  PNX_SOURCE_REF="${PNX_SOURCE_REF:-e9d4ffaa5638ca0f82bcdedf3320afd6cf92e38d}"
+  PNX_EXPECTED_VERSION="${PNX_EXPECTED_VERSION:-3.0.2}"
+  PNX_EXPECTED_MINECRAFT="${PNX_EXPECTED_MINECRAFT:-26.40}"
+  PNX_JAVA_MIN="${PNX_JAVA_MIN:-21}"
+  PNX_HEAP_MIN="${PNX_HEAP_MIN:-512M}"
+  PNX_HEAP_MAX="${PNX_HEAP_MAX:-2G}"
+  MANAGED_PLUGINS="${MANAGED_PLUGINS:-true}"
+}
 engine_for(){ source_engines; local instance="$1" var="${1^^}_ENGINE"; printf '%s' "${!var:-bds}"; }
 instances_by_engine(){
   local wanted="$1" i
@@ -73,8 +110,6 @@ start_instance_list(){
     [[ -n "$i" ]] || continue
     systemctl start "bedrock@$i.service"
   done <<< "$list"
-  # An empty previous-active list is normal on first bootstrap. Never leak the
-  # false status from `[[ -n "$i" ]]` into a caller running with `set -e`.
   return 0
 }
 instances_healthy(){ local list="$1" i failed=0; sleep 2; while IFS= read -r i; do [[ -n "$i" ]] || continue; systemctl is-active --quiet "bedrock@$i.service" || { warn "$i no está activo."; failed=1; }; done <<< "$list"; return "$failed"; }
@@ -110,7 +145,7 @@ install_units(){
   chmod 0750 "$ROOT/uploads" "$ROOT/uploads/requests" "$STATE_DIR/web-imports"
   systemctl daemon-reload
   local i
-  for i in "${INSTANCES[@]}"; do systemctl enable "bedrock@$i.service" >/dev/null; done
-  systemctl enable bedrock-backup-survival.timer bedrock-web.service bedrock-survival-import.path >/dev/null
+  for i in "${INSTANCES[@]}"; do systemctl enable "bedrock@$i.service" >/dev/null 2>&1; done
+  systemctl enable bedrock-backup-survival.timer bedrock-web.service bedrock-survival-import.path >/dev/null 2>&1
   systemctl start bedrock-survival-import.path >/dev/null 2>&1 || true
 }
