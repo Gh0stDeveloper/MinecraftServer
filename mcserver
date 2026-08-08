@@ -12,6 +12,7 @@ Minecraft Bedrock Network Manager
 Uso: mcserver <comando>
 
   install [--host HOST] [--domain DOMINIO]   Primera instalación completa
+  bootstrap                                  Completar/reparar una instalación incompleta
   status                                     Estado, motores y versiones
   update [all|project|bds|pnx|plugins]       Actualizar componentes
   rollback bds <version>                     Volver a un runtime BDS
@@ -25,6 +26,7 @@ Uso: mcserver <comando>
   minigames import-skywars ...               Importar mapa SkyWars legacy + coordenadas
   network status|verify                      Comprobar IP, DNS y puertos
   network use-domain|use-ip                  Cambiar host público de transferencias
+  firewall apply|status|check                Gestionar firewall local de Minecraft/web
   auto-update enable|disable|status          Actualización diaria (opcional)
   start | stop | restart                     Control de toda la red
   backup                                     Backup consistente
@@ -35,6 +37,10 @@ Uso: mcserver <comando>
   web admin-token                            Generar/cambiar token del panel privado
   web domain [DOMINIO]                       Configurar Nginx (usa PUBLIC_DOMAIN si se omite)
   web https DOMINIO EMAIL                    Configurar HTTPS con validación DNS
+
+Recuperación recomendada de una instalación incompleta:
+  sudo mcserver update project
+  sudo mcserver bootstrap
 
 Panel privado:
   https://DOMINIO/admin.html
@@ -47,6 +53,7 @@ network_action(){ require_root; action="$1"; for i in "${INSTANCES[@]}"; do syst
 cmd="${1:-help}"; shift || true
 case "$cmd" in
   install) require_root; exec bash "$BASE/scripts/first-install.sh" "$@";;
+  bootstrap) require_root; exec bash "$RUNTIME_BASE/scripts/bootstrap-runtime.sh" "$@";;
   status) exec bash "$RUNTIME_BASE/scripts/status.sh";;
   update)
     require_root; mode="${1:-all}"; [[ $# -gt 0 ]] && shift || true
@@ -74,6 +81,7 @@ case "$cmd" in
   plugins) require_root; exec bash "$RUNTIME_BASE/scripts/plugin-manager.sh" "$@";;
   minigames) require_root; exec bash "$RUNTIME_BASE/scripts/minigame-manager.sh" "$@";;
   network) require_root; exec bash "$RUNTIME_BASE/scripts/network-manager.sh" "$@";;
+  firewall) require_root; exec bash "$RUNTIME_BASE/scripts/firewall-manager.sh" "$@";;
   auto-update)
     require_root
     case "${1:-status}" in
