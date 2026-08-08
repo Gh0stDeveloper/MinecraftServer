@@ -21,4 +21,13 @@ backup_network(){
   find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d -name 'network-*' -printf '%T@ %p\n' 2>/dev/null | sort -nr | tail -n +11 | cut -d' ' -f2- | xargs -r rm -rf
   printf '%s\n' "$out"
 }
-if [[ "${1:-}" == "--online-stopped" ]]; then backup_network; else lock_manager; stop_network; out="$(backup_network | tail -n1)"; start_network; ok "Backup creado: $out"; fi
+if [[ "${1:-}" == "--online-stopped" ]]; then
+  backup_network
+else
+  lock_manager
+  was_active="$(active_instances)"
+  stop_network
+  out="$(backup_network | tail -n1)"
+  start_instance_list "$was_active"
+  ok "Backup creado: $out"
+fi
