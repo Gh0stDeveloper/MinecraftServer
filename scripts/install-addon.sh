@@ -11,7 +11,7 @@ TARGET="$BASE/instances/$INSTANCE"
 [[ -f "$ADDON_SRC/manifest.json" ]] || { echo "manifest.json no encontrado" >&2; exit 1; }
 
 PACK_NAME="$(basename "$ADDON_SRC")"
-mkdir -p "$TARGET/behavior_packs/$PACK_NAME"
+mkdir -p "$TARGET/behavior_packs/$PACK_NAME" "$TARGET/config"
 rsync -a --delete "$ADDON_SRC/" "$TARGET/behavior_packs/$PACK_NAME/"
 
 LEVEL_NAME="$(awk -F= '$1=="level-name"{print substr($0,index($0,"=")+1)}' "$TARGET/server.properties")"
@@ -41,8 +41,6 @@ data = [x for x in data if x.get("pack_id") != entry["pack_id"]]
 data.append(entry)
 world_packs.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
-# BDS requires explicit module permissions for script packs. Keep permissions
-# constrained to the Mojang modules actually declared by this addon.
 allowed = sorted({
     dep.get("module_name")
     for dep in manifest.get("dependencies", [])
@@ -69,8 +67,6 @@ def merge_permissions(path: Path) -> None:
     path.write_text(json.dumps(current, indent=2) + "\n", encoding="utf-8")
 
 if allowed and script_ids:
-    # Minimal global defaults plus a per-script-module policy. The UUID policy
-    # is the important part and keeps future script packs isolated.
     merge_permissions(config_dir / "default" / "permissions.json")
     for script_id in script_ids:
         merge_permissions(config_dir / script_id / "permissions.json")
