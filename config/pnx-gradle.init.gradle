@@ -1,0 +1,17 @@
+allprojects {
+    repositories {
+        clear()
+        mavenCentral()
+        maven { url = uri("https://www.jitpack.io") }
+        maven { url = uri("https://repo.opencollab.dev/maven-releases/") }
+        maven { url = uri("https://repo.opencollab.dev/maven-snapshots/") }
+        maven { url = uri("https://repo.powernukkitx.org/releases") }
+    }
+
+    configurations.configureEach {
+        resolutionStrategy.dependencySubstitution {
+            substitute module("com.github.PowerNukkitX:PowerNukkitX") using module("org.powernukkitx:server:2.0.0-SNAPSHOT")
+            substitute module("com.github.AkmalFairuz:PowerNukkitX") using module("org.powernukkitx:server:2.0.0-SNAPSHOT")
+        }
+    }
+}
