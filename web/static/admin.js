@@ -20,6 +20,10 @@ function human(bytes){const units=['B','KB','MB','GB'];let n=bytes,i=0;while(n>=
 function setAuth(ok,text){authenticated=ok;authState.textContent=text;authState.className=`admin-state ${ok?'ok':'bad'}`;uploadWorld.disabled=!(ok&&worldFile.files.length);}
 function setProgress(percent,text){progressWrap.hidden=false;const p=Math.max(0,Math.min(100,percent));progressBar.style.width=`${p}%`;progressPercent.textContent=`${Math.round(p)}%`;progressText.textContent=text;}
 function log(text,isError=false){importLog.hidden=false;importLog.textContent=text||'';importLog.classList.toggle('error',isError);}
+function failureDetail(data){
+  const detail=(data&&typeof data.message==='string'&&data.message.trim())||(data&&typeof data.error==='string'&&data.error.trim())||'El importador no devolvió detalles del fallo.';
+  return detail;
+}
 
 async function validateToken(){
   if(!token()){setAuth(false,'Introduce el token administrativo.');return false;}
@@ -78,7 +82,14 @@ async function pollImport(id){
     if(data.state==='queued'){setProgress(94,'Archivo recibido. Esperando al importador…');}
     else if(data.state==='importing'){setProgress(97,'Validando, respaldando e importando Survival…');}
     else if(data.state==='success'){setProgress(100,'Importación completada.');log(data.message||'Survival importado correctamente.');return data;}
-    else if(data.state==='failed'){setProgress(100,'La importación falló.');log(data.message||data.error||'Error desconocido.',true);throw new Error('La importación no se completó.');}
+    else if(data.state==='failed'){
+      const detail=failureDetail(data);
+      setProgress(100,'La importación falló. Revisa el detalle de abajo.');
+      log(detail,true);
+      const error=new Error(detail);
+      error.importDetail=true;
+      throw error;
+    }
     await new Promise(r=>setTimeout(r,2000));
   }
   throw new Error('La importación sigue en proceso; revisa el estado más tarde.');
@@ -94,7 +105,11 @@ uploadWorld.addEventListener('click',async()=>{
     setProgress(94,'Subida terminada. Preparando importación…');
     await pollImport(queued.id);
     fileMeta.textContent='Importación finalizada correctamente.';
-  }catch(e){log(e.message,true);progressText.textContent=e.message;}
+  }catch(e){
+    if(!e.importDetail)log(e.message||'La importación no se completó.',true);
+    progressText.textContent=e.importDetail?'La importación falló. Revisa el detalle de abajo.':(e.message||'La importación no se completó.');
+    fileMeta.textContent='La importación no se completó. El detalle técnico aparece debajo.';
+  }
   finally{checkToken.disabled=false;uploadWorld.disabled=!(authenticated&&worldFile.files.length);}
 });
 
