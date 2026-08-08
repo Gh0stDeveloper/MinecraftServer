@@ -32,6 +32,15 @@ jobs:
       - name: Validate repository invariants
         run: python3 tests/validate_project.py
 
+      - name: Validate shell-compatible configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          source config/network.env
+          [[ "$SERVER_NAME" == "Bedrock Network" ]]
+          [[ "$WEB_PORT" == "8080" ]]
+          [[ "$SURVIVAL_PORT" == "19133" ]]
+
       - name: Test BDS update resolver
         run: python3 tests/test_bds_resolver.py
 
