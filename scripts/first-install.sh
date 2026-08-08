@@ -54,8 +54,12 @@ ENGINES="$ROOT/config/engines.env"
 [[ -f "$ENGINES" ]] || cp "$APP_DIR/config/engines.env" "$ENGINES"
 
 read_env_value(){
-  local file="$1" key="$2"
-  awk -F= -v k="$key" '$1==k{v=substr($0,index($0,"=")+1); gsub(/^["'"']|["'"']$/, "", v); print v; exit}' "$file" 2>/dev/null || true
+  local file="$1" key="$2" value
+  value="$(grep -m1 "^${key}=" "$file" 2>/dev/null || true)"
+  value="${value#*=}"
+  value="${value#\"}"; value="${value%\"}"
+  value="${value#\'}"; value="${value%\'}"
+  printf '%s' "$value"
 }
 valid_ipv4(){ python3 - "$1" <<'PY' >/dev/null 2>&1
 import ipaddress,sys
@@ -96,16 +100,22 @@ domain_matches_ip(){
   [[ -n "$domain" && -n "$expected" ]] || return 1
   getent ahostsv4 "$domain" 2>/dev/null | awk '{print $1}' | grep -Fxq "$expected"
 }
+set_env(){
+  local file="$1" key="$2" value="$3" escaped
+  escaped="${value//|/\\|}"
+  if grep -q "^${key}=" "$file"; then sed -i "s|^${key}=.*|${key}=\"${escaped}\"|" "$file"; else printf '%s="%s"\n' "$key" "$value" >> "$file"; fi
+}
 
 existing_ip="$(read_env_value "$CONFIG" PUBLIC_IP)"
 existing_domain="$(read_env_value "$CONFIG" PUBLIC_DOMAIN)"
 PUBLIC_IP="${PUBLIC_IP_OVERRIDE:-$existing_ip}"
-if [[ -z "$PUBLIC_IP" ]]; then
-  ui_section "Red pública"
-  ui_run_task "Detectando IPv4 pública de la VPS" bash -c 'exit 0'
+ui_section "Red pública"
+if [[ -z "$PUBLIC_IP" ]] || ! valid_ipv4 "$PUBLIC_IP"; then
+  ui_step "Detectando IPv4 pública de la VPS"
   PUBLIC_IP="$(detect_public_ipv4 || true)"
+  [[ -n "$PUBLIC_IP" ]] && ui_ok "IPv4 pública detectada: $PUBLIC_IP" || ui_warn "No se pudo detectar automáticamente la IPv4 pública."
 fi
-if [[ -z "$PUBLIC_IP" || ! $(valid_ipv4 "$PUBLIC_IP"; echo $?) -eq 0 ]]; then
+if [[ -z "$PUBLIC_IP" ]] || ! valid_ipv4 "$PUBLIC_IP"; then
   if [[ -r /dev/tty ]]; then PUBLIC_IP="$(ui_prompt 'IPv4 pública de esta VPS')"; fi
 fi
 valid_ipv4 "$PUBLIC_IP" || { ui_error 'No se pudo obtener una IPv4 pública válida. Usa --public-ip X.X.X.X.'; exit 1; }
@@ -118,23 +128,17 @@ if [[ -z "$DOMAIN" && -r /dev/tty ]]; then
   DOMAIN="$(ui_prompt 'Dominio público (Enter para continuar solo con IP)')"
 fi
 DOMAIN="$(normalize_domain "$DOMAIN")"
-if [[ -n "$DOMAIN" ]] && ! valid_domain "$DOMAIN"; then
-  ui_error "Dominio inválido: $DOMAIN"
-  exit 1
-fi
+if [[ -n "$DOMAIN" ]] && ! valid_domain "$DOMAIN"; then ui_error "Dominio inválido: $DOMAIN"; exit 1; fi
 
+DNS_STATE="sin-dominio"
+if [[ -n "$DOMAIN" ]]; then
+  if domain_matches_ip "$DOMAIN" "$PUBLIC_IP"; then DNS_STATE="verificado"; else DNS_STATE="pendiente"; fi
+fi
 if [[ -z "$HOST" ]]; then
-  if domain_matches_ip "$DOMAIN" "$PUBLIC_IP"; then HOST="$DOMAIN"; DNS_STATE="verificado"
-  else HOST="$PUBLIC_IP"; DNS_STATE="pendiente"
-  fi
+  if [[ "$DNS_STATE" == verificado ]]; then HOST="$DOMAIN"; else HOST="$PUBLIC_IP"; fi
 fi
 [[ -n "$HOST" ]] || { ui_error 'El host público no puede estar vacío.'; exit 1; }
 
-set_env(){
-  local file="$1" key="$2" value="$3" escaped
-  escaped="${value//|/\\|}"
-  if grep -q "^${key}=" "$file"; then sed -i "s|^${key}=.*|${key}=\"${escaped}\"|" "$file"; else printf '%s="%s"\n' "$key" "$value" >> "$file"; fi
-}
 set_env "$CONFIG" PUBLIC_IP "$PUBLIC_IP"
 set_env "$CONFIG" PUBLIC_DOMAIN "$DOMAIN"
 set_env "$CONFIG" PUBLIC_HOST "$HOST"
@@ -166,11 +170,11 @@ fi
 bash "$APP_DIR/scripts/normalize-permissions.sh" >/dev/null
 
 source "$APP_DIR/scripts/lib.sh"
+source_config
+source_engines
 ui_section "Runtimes y servicios"
 ui_run_task "Instalando unidades systemd" bash -c 'source "$1"; install_units' _ "$APP_DIR/scripts/lib.sh"
 ui_run_task "Instalando/actualizando Bedrock Dedicated Server" bash "$APP_DIR/scripts/update-bds.sh" "$BDS_VERSION"
-# PowerNukkitX gestiona internamente el snapshot y su fallback compilado. Se deja
-# visible su estado de alto nivel, pero Gradle/curl quedan compactados por su updater.
 bash "$APP_DIR/scripts/update-pnx.sh" latest
 ui_run_task "Preparando instancias PowerNukkitX" bash "$APP_DIR/scripts/engine-manager.sh" prepare
 
@@ -183,7 +187,7 @@ systemctl stop bedrock@lobby.service || true
 [[ -d "$ROOT/instances/lobby/worlds/$LEVEL" ]] || { ui_error "No se creó el mundo del lobby: $LEVEL"; exit 1; }
 ui_run_task "Instalando plugins Nexora" bash "$APP_DIR/scripts/plugin-manager.sh" sync
 ui_run_task "Preparando PvP, BedWars y SkyWars" bash "$APP_DIR/scripts/minigame-manager.sh" prepare
-bash "$APP_DIR/scripts/render-lobby-config.sh" >/dev/null
+ui_run_task "Actualizando configuración del Lobby" bash "$APP_DIR/scripts/render-lobby-config.sh"
 ui_run_task "Instalando addon del Lobby" bash "$APP_DIR/scripts/install-addon.sh" lobby "$ROOT/addons/lobby_bp"
 ui_run_task "Aplicando firewall local" bash "$APP_DIR/scripts/firewall-manager.sh" apply
 
@@ -195,9 +199,7 @@ if [[ ! -s "$ROOT/config/web-admin.token.sha256" ]]; then
   ui_section "Panel administrativo"
   bash "$APP_DIR/scripts/web-setup.sh" admin-token
 fi
-if [[ -n "$DOMAIN" && "$DNS_STATE" == verificado ]]; then
-  ui_run_task "Configurando Nginx para $DOMAIN" bash "$APP_DIR/scripts/web-setup.sh" domain "$DOMAIN"
-fi
+if [[ -n "$DOMAIN" && "$DNS_STATE" == verificado ]]; then ui_run_task "Configurando Nginx para $DOMAIN" bash "$APP_DIR/scripts/web-setup.sh" domain "$DOMAIN"; fi
 bash "$APP_DIR/scripts/check-survival-safety.sh" "$ROOT/instances/survival/server.properties" >/dev/null
 
 ui_section "Instalación completada"
@@ -207,10 +209,6 @@ ui_kv "BDS" "$(current_bds_version)"
 ui_kv "PowerNukkitX" "$(current_pnx_version)"
 ui_kv "Web interna" "http://127.0.0.1:$WEB_PORT"
 ui_kv "Survival" "pendiente de importar (protegido)"
-if [[ -n "$DOMAIN" ]]; then
-  ui_kv "Panel" "https://$DOMAIN/admin.html (requiere HTTPS)"
-else
-  ui_note "Añade un dominio después con: sudo mcserver web domain TU_DOMINIO"
-fi
+if [[ -n "$DOMAIN" ]]; then ui_kv "Panel" "https://$DOMAIN/admin.html (requiere HTTPS)"; else ui_note "Añade un dominio después con: sudo mcserver web domain TU_DOMINIO"; fi
 ui_note "Siguiente comprobación: sudo mcserver doctor"
 ui_note "Logs detallados de tareas: $(ui_log_dir)/tasks.log"
