@@ -38,13 +38,17 @@ chmod +x "$APP_DIR/mcserver" "$APP_DIR/install.sh" "$ROOT/scripts"/*.sh "$ROOT/s
 ln -sfn "$APP_DIR/mcserver" /usr/local/bin/mcserver
 
 if [[ -z "$HOST" ]]; then
-  if [[ -t 0 ]]; then read -r -p 'IP o dominio público de Minecraft: ' HOST; else echo 'Usa --host en instalación no interactiva.' >&2; exit 1; fi
+  if [[ -r /dev/tty ]]; then
+    read -r -p 'IP o dominio público de Minecraft: ' HOST </dev/tty
+  else
+    echo 'Usa --host en instalación no interactiva.' >&2; exit 1
+  fi
 fi
 [[ -n "$HOST" ]] || { echo 'El host no puede estar vacío.' >&2; exit 1; }
 
 CONFIG="$ROOT/config/network.env"
 [[ -f "$CONFIG" ]] || cp "$APP_DIR/config/network.env" "$CONFIG"
-grep -q '^SERVER_NAME=' "$CONFIG" || printf '\nSERVER_NAME=Bedrock Network\n' >> "$CONFIG"
+grep -q '^SERVER_NAME=' "$CONFIG" || printf '\nSERVER_NAME="Bedrock Network"\n' >> "$CONFIG"
 grep -q '^WEB_PORT=' "$CONFIG" || printf 'WEB_PORT=8080\n' >> "$CONFIG"
 sed -i "s|^PUBLIC_HOST=.*|PUBLIC_HOST=$HOST|" "$CONFIG"
 sed -i "s|^WEB_PORT=.*|WEB_PORT=$WEB_PORT|" "$CONFIG"
