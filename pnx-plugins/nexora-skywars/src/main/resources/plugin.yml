@@ -1,0 +1,14 @@
+name: NexoraSkyWars
+main: dev.gh0stdeveloper.minecraft.skywars.NexoraSkyWars
+version: "0.1.0"
+api: "2.0.0"
+load: POSTWORLD
+author: Gh0stDeveloper
+description: Native SkyWars engine with generated islands and loot crates.
+commands:
+  sw:
+    description: SkyWars Solo, Duo y Escuadra.
+    usage: "/sw <solo|duo|squad|leave|status|rebuild>"
+  lobby:
+    description: Volver al lobby principal.
+    usage: "/lobby"

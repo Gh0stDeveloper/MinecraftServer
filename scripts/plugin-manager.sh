@@ -29,6 +29,7 @@ render_internal_config(){
   case "$id" in
     nexora-practice) plugin_folder="NexoraPractice"; defaults="$APP_DIR/pnx-plugins/nexora-practice/src/main/resources/config.yml";;
     nexora-bedwars) plugin_folder="NexoraBedWars"; defaults="$APP_DIR/pnx-plugins/nexora-bedwars/src/main/resources/config.yml";;
+    nexora-skywars) plugin_folder="NexoraSkyWars"; defaults="$APP_DIR/pnx-plugins/nexora-skywars/src/main/resources/config.yml";;
     *) return 0;;
   esac
   folder="$INSTANCES_DIR/$instance/plugins/$plugin_folder"; cfg="$folder/config.yml"; mkdir -p "$folder"; [[ -f "$cfg" ]] || cp "$defaults" "$cfg"

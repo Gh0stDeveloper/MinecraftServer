@@ -8,9 +8,9 @@ permissions:
   contents: read
 jobs:
   validate:
-    name: Validate native minigame project
+    name: Validate fully native minigame project
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -62,6 +62,10 @@ jobs:
         run: |
           mvn -q -f pnx-plugins/nexora-bedwars/pom.xml -DskipTests package
           test -f pnx-plugins/nexora-bedwars/target/nexora-bedwars-0.1.0.jar
+      - name: Build native SkyWars plugin
+        run: |
+          mvn -q -f pnx-plugins/nexora-skywars/pom.xml -DskipTests package
+          test -f pnx-plugins/nexora-skywars/target/nexora-skywars-0.1.0.jar
       - name: Validate Survival achievement safety
         run: bash scripts/check-survival-safety.sh instances/survival/server.properties
       - name: Validate minigame safety gates
@@ -69,7 +73,9 @@ jobs:
         run: |
           set -euo pipefail
           grep -q 'nexora-bedwars.jar' scripts/render-lobby-config.sh
+          grep -q 'nexora-skywars.jar' scripts/render-lobby-config.sh
           grep -q 'NexoraBedWars' scripts/minigame-manager.sh
+          grep -q 'NexoraSkyWars' scripts/minigame-manager.sh
           grep -q 'conflicts' config/plugins.json
           grep -q 'modeReady' addons/lobby_bp/scripts/main.js
       - name: Smoke test public website
@@ -102,8 +108,8 @@ jobs:
           (cd /tmp/bedwars && ./gradlew --no-daemon --console=plain --init-script "$GITHUB_WORKSPACE/config/pnx-gradle.init.gradle" clean shadowJar)
           find /tmp/bedwars/build/libs -name 'SilentBedwars-*.jar' -type f | grep -q .
 
-  skywars-compatibility:
-    name: Build pinned SkyWars plugin
+  skywars-fallback-compatibility:
+    name: Build pinned SkyWars fallback
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -112,7 +118,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - name: Build PowerSkywars against current PowerNukkitX API
+      - name: Build PowerSkywars fallback against current PowerNukkitX API
         shell: bash
         run: |
           set -euo pipefail
@@ -124,7 +130,7 @@ jobs:
 
   package:
     name: Package deployable project
-    needs: [validate, bedwars-fallback-compatibility, skywars-compatibility]
+    needs: [validate, bedwars-fallback-compatibility, skywars-fallback-compatibility]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
