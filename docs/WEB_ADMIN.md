@@ -1,13 +1,13 @@
 # Panel web administrativo
 
-El panel privado está pensado para administrar Survival desde Android sin usar SFTP ni descomprimir el mundo manualmente.
+El panel privado permite administrar Survival desde Android o cualquier navegador sin usar SFTP ni descomprimir el mundo manualmente.
 
 ## URL
 
 Después de configurar HTTPS:
 
 ```text
-https://minecraftnexora.duckdns.org/admin.html
+https://TU_DOMINIO/admin.html
 ```
 
 La API administrativa rechaza accesos públicos por HTTP. La página pública de estado sigue funcionando normalmente.
@@ -30,7 +30,7 @@ El archivo queda `root:bedrock` con modo `0640`.
 
 ## Subir Survival
 
-1. Abre `/admin.html` desde Android.
+1. Abre `/admin.html` desde el navegador.
 2. Pega el token y pulsa **Validar**.
 3. Selecciona un `.zip` o `.mcworld`.
 4. Pulsa **Subir e importar Survival**.
@@ -56,7 +56,7 @@ El proceso web se ejecuta como `bedrock`, sin privilegios root. Solo puede escri
 Flujo:
 
 ```text
-Android/HTTPS
+Navegador/HTTPS
   -> web/server.py (bedrock)
   -> uploads/<id>.zip
   -> uploads/requests/<id>.json
@@ -79,17 +79,35 @@ El worker root:
 
 El ZIP subido se elimina del staging al terminar la operación. Los backups permanecen en `/opt/bedrock-network/backups/imports/`.
 
+## Dominio recomendado
+
+Si no tienes un dominio, el instalador recomienda DuckDNS porque permite crear gratuitamente un subdominio `*.duckdns.org` que puede apuntar a la IPv4 pública de tu VPS.
+
+Ejemplo:
+
+```text
+miservidor.duckdns.org -> 203.0.113.10
+```
+
+El instalador pide el dominio durante la primera configuración. Si el DNS todavía no apunta a la VPS, conserva el dominio pero usa temporalmente la IP.
+
+Cuando el DNS sea correcto:
+
+```bash
+sudo mcserver network use-domain
+```
+
 ## Activación en una VPS ya instalada
 
 ```bash
 sudo mcserver update project
 sudo mcserver web admin-token
-sudo mcserver web domain minecraftnexora.duckdns.org
-sudo mcserver web https minecraftnexora.duckdns.org TU_CORREO
+sudo mcserver web domain TU_DOMINIO
+sudo mcserver web https TU_DOMINIO TU_CORREO
 ```
 
 Después abre:
 
 ```text
-https://minecraftnexora.duckdns.org/admin.html
+https://TU_DOMINIO/admin.html
 ```
