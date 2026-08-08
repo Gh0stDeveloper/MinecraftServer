@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>dev.gh0stdeveloper.minecraft</groupId>
   <artifactId>nexora-practice</artifactId>
-  <version>0.2.0</version>
+  <version>0.2.1</version>
   <properties>
     <maven.compiler.release>21</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -26,7 +26,7 @@
     </dependency>
   </dependencies>
   <build>
-    <finalName>nexora-practice-0.2.0</finalName>
+    <finalName>nexora-practice-0.2.1</finalName>
     <resources><resource><directory>src/main/resources</directory></resource></resources>
     <plugins>
       <plugin>
