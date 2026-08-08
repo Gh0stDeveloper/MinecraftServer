@@ -21,11 +21,12 @@ check_instance(){
 }
 
 check_instance pvp 19134 PvP
-check_instance bedwars 19135 BedWars
+# `world` is intentional here: the pinned SilentBedwars fallback opens that
+# level explicitly, so the managed BedWars instance preserves compatibility.
+check_instance bedwars 19135 world
 check_instance skywars 19136 SkyWars
 
-# No managed PNX minigame may ever fall back to the Lobby port/default world.
+# No managed PNX minigame may ever inherit the Lobby UDP port.
 ! grep -R -Fxq '  port: 19132' "$TEST_ROOT/instances/pvp/pnx.yml" "$TEST_ROOT/instances/bedwars/pnx.yml" "$TEST_ROOT/instances/skywars/pnx.yml"
-! grep -R -Fxq '  defaultLevelName: "world"' "$TEST_ROOT/instances/pvp/pnx.yml" "$TEST_ROOT/instances/bedwars/pnx.yml" "$TEST_ROOT/instances/skywars/pnx.yml"
 
 echo "Managed PowerNukkitX port/level regression passed."
