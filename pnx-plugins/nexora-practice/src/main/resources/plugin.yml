@@ -1,7 +1,7 @@
 name: NexoraPractice
 main: dev.gh0stdeveloper.minecraft.practice.NexoraPractice
 version: "0.2.0"
-api: "2.0.0"
+api: "3.0.2"
 load: POSTWORLD
 author: Gh0stDeveloper
 description: PvP practice engine with generated arenas, queues and rounds for PowerNukkitX.

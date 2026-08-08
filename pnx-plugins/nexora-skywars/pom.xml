@@ -6,14 +6,50 @@
   <groupId>dev.gh0stdeveloper.minecraft</groupId>
   <artifactId>nexora-skywars</artifactId>
   <version>0.1.0</version>
-  <properties><maven.compiler.release>21</maven.compiler.release><project.build.sourceEncoding>UTF-8</project.build.sourceEncoding></properties>
-  <repositories>
-    <repository><id>central</id><url>https://repo.maven.apache.org/maven2/</url></repository>
-    <repository><id>jitpack.io</id><url>https://www.jitpack.io</url></repository>
-    <repository><id>opencollab-releases</id><url>https://repo.opencollab.dev/maven-releases</url></repository>
-    <repository><id>opencollab-snapshots</id><url>https://repo.opencollab.dev/maven-snapshots</url></repository>
-    <repository><id>powernukkitx-releases</id><url>https://repo.powernukkitx.org/releases</url></repository>
-  </repositories>
-  <dependencies><dependency><groupId>org.powernukkitx</groupId><artifactId>server</artifactId><version>2.0.0-SNAPSHOT</version><scope>provided</scope></dependency></dependencies>
-  <build><finalName>nexora-skywars-0.1.0</finalName><resources><resource><directory>src/main/resources</directory></resource></resources><plugins><plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><version>3.13.0</version></plugin></plugins></build>
+  <properties>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>org.powernukkitx</groupId>
+      <artifactId>server</artifactId>
+      <version>3.0.2</version>
+      <scope>system</scope>
+      <systemPath>${env.PNX_API_JAR}</systemPath>
+    </dependency>
+  </dependencies>
+  <build>
+    <sourceDirectory>${project.build.directory}/generated-sources/pnx3</sourceDirectory>
+    <finalName>nexora-skywars-0.1.0</finalName>
+    <resources><resource><directory>src/main/resources</directory></resource></resources>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>migrate-pnx3-namespace</id>
+            <phase>generate-sources</phase>
+            <configuration>
+              <target>
+                <mkdir dir="${project.build.directory}/generated-sources/pnx3"/>
+                <copy todir="${project.build.directory}/generated-sources/pnx3">
+                  <fileset dir="${project.basedir}/src/main/java" includes="**/*.java"/>
+                </copy>
+                <replace dir="${project.build.directory}/generated-sources/pnx3" token="cn.nukkit." value="org.powernukkitx." includes="**/*.java"/>
+              </target>
+            </configuration>
+            <goals><goal>run</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+      </plugin>
+    </plugins>
+  </build>
 </project>

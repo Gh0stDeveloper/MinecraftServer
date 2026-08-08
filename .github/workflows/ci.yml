@@ -113,6 +113,30 @@ jobs:
           while IFS= read -r -d '' source; do node --check "$source"; done < <(find addons web -type f -name '*.js' -print0)
       - name: Validate Python syntax
         run: python3 -m py_compile scripts/bds-resolver.py web/server.py tests/validate_project.py tests/validate_plugin_catalog.py tests/test_bds_resolver.py tests/test_pnx_source_pin.py
+      - name: Build pinned PowerNukkitX compile runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          source config/engines.env
+          rm -rf /tmp/pnx-api
+          mkdir -p /tmp/pnx-api
+          git -C /tmp/pnx-api init -q
+          git -C /tmp/pnx-api remote add origin "$PNX_SOURCE_REPO"
+          git -C /tmp/pnx-api fetch -q --depth 1 origin "$PNX_SOURCE_REF"
+          git -C /tmp/pnx-api checkout -q --detach FETCH_HEAD
+          [[ "$(git -C /tmp/pnx-api rev-parse HEAD)" == "$PNX_SOURCE_REF" ]]
+          chmod +x /tmp/pnx-api/gradlew
+          (
+            cd /tmp/pnx-api
+            ./gradlew --no-daemon --console=plain --no-configuration-cache --max-workers=1 \
+              -Dorg.gradle.parallel=false \
+              -Dorg.gradle.jvmargs='-Xmx1536m -Xms256m -Dfile.encoding=UTF-8 -XX:+UseG1GC' \
+              -PbuildVersion="$PNX_EXPECTED_VERSION" shadowJar
+          )
+          PNX_API_JAR=/tmp/pnx-api/build/powernukkitx.jar
+          test -s "$PNX_API_JAR"
+          python3 scripts/pnx-jar-validator.py "$PNX_API_JAR"
+          echo "PNX_API_JAR=$PNX_API_JAR" >> "$GITHUB_ENV"
       - name: Build native PvP plugin
         run: |
           mvn -q -f pnx-plugins/nexora-practice/pom.xml -DskipTests package

@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parent.parent
 EXPECTED_PORTS={"lobby":"19132","survival":"19133","pvp":"19134","bedwars":"19135","skywars":"19136"}
+NATIVE={"nexora-practice":("0.2.0","3.0.2"),"nexora-bedwars":("0.1.0","3.0.2"),"nexora-skywars":("0.1.0","3.0.2")}
 def props(path:Path)->dict[str,str]:
     out={}
     for raw in path.read_text(encoding="utf-8").splitlines():
@@ -24,9 +25,7 @@ def validate_instances():
     assert int(props(ROOT/"instances"/"skywars"/"server.properties").get("max-players","0"))>=16
 def validate_deployment():
     n=env(ROOT/"config"/"network.env")
-    assert n.get("PUBLIC_IP","")==""
-    assert n.get("PUBLIC_DOMAIN","")==""
-    assert n.get("PUBLIC_HOST","")==""
+    assert n.get("PUBLIC_IP","")==""; assert n.get("PUBLIC_DOMAIN","")==""; assert n.get("PUBLIC_HOST","")==""
     assert n.get("LOBBY_PORT")=="19132" and n.get("WEB_PORT")=="8080"
 def validate_public_docs():
     forbidden=("minecraftnexora.duckdns.org","163.192.204.78")
@@ -37,11 +36,8 @@ def validate_public_docs():
 def validate_engines():
     e=env(ROOT/"config"/"engines.env"); assert e.get("LOBBY_ENGINE")=="bds"; assert e.get("SURVIVAL_ENGINE")=="bds"
     for k in ("PVP_ENGINE","BEDWARS_ENGINE","SKYWARS_ENGINE"): assert e.get(k)=="pnx"
-    assert e.get("PNX_EXPECTED_VERSION")=="3.0.2"
-    assert e.get("PNX_EXPECTED_MINECRAFT")=="26.40"
-    assert int(e.get("PNX_JAVA_MIN","0"))>=21
-    assert e.get("PNX_SOURCE_REPO")=="https://github.com/PowerNukkitX/PowerNukkitX.git"
-    assert re.fullmatch(r"[0-9a-f]{40}",e.get("PNX_SOURCE_REF",""))
+    assert e.get("PNX_EXPECTED_VERSION")=="3.0.2"; assert e.get("PNX_EXPECTED_MINECRAFT")=="26.40"; assert int(e.get("PNX_JAVA_MIN","0"))>=21
+    assert e.get("PNX_SOURCE_REPO")=="https://github.com/PowerNukkitX/PowerNukkitX.git"; assert re.fullmatch(r"[0-9a-f]{40}",e.get("PNX_SOURCE_REF",""))
 def validate_json():
     for p in ROOT.rglob("*.json"):
         if any(part in {"target","build"} for part in p.parts): continue
@@ -55,13 +51,19 @@ def validate_plugins():
     by_id={p["id"]:p for p in json.loads((ROOT/"config"/"plugins.json").read_text())["plugins"]}
     required={"nexora-practice","nexora-bedwars","silentbedwars","nexora-skywars","powerskywars"}; assert required <= set(by_id)
     for item in by_id.values():
-        assert item["instance"] in {"pvp","bedwars","skywars"}; assert item["minecraft"]=="26.40"; assert item["api"]=="2.0.0"
-        if item["source_type"]=="git-gradle": assert item["source"].startswith("https://github.com/"); assert len(item["ref"])==40; assert item["redistribute"] is False
-        elif item["source_type"]=="local-maven": assert (ROOT/item["source"]/"pom.xml").is_file(); assert (ROOT/item["source"]/"src/main/resources/plugin.yml").is_file()
+        assert item["instance"] in {"pvp","bedwars","skywars"}; assert item["minecraft"]=="26.40"
+        if item["source_type"]=="git-gradle":
+            assert item["source"].startswith("https://github.com/"); assert len(item["ref"])==40; assert item["redistribute"] is False
+        elif item["source_type"]=="local-maven":
+            assert (ROOT/item["source"]/"pom.xml").is_file(); assert (ROOT/item["source"]/"src/main/resources/plugin.yml").is_file()
+            version,api=NATIVE[item["id"]]; assert item["version"]==version; assert item["api"]==api
+            plugin=(ROOT/item["source"]/"src/main/resources/plugin.yml").read_text(encoding="utf-8")
+            pom=(ROOT/item["source"]/"pom.xml").read_text(encoding="utf-8")
+            assert f'version: "{version}"' in plugin; assert f'api: "{api}"' in plugin; assert "<version>3.0.2</version>" in pom
+            assert "<scope>system</scope>" in pom; assert "${env.PNX_API_JAR}" in pom
+            assert item["artifact"].endswith(f"-{version}.jar")
         else: raise AssertionError(item["source_type"])
-    assert by_id["nexora-practice"]["auto_install"] is True and by_id["nexora-practice"]["version"]=="0.2.0"
-    assert by_id["nexora-bedwars"]["auto_install"] is True and by_id["nexora-bedwars"]["version"]=="0.1.0"
-    assert by_id["nexora-skywars"]["auto_install"] is True and by_id["nexora-skywars"]["version"]=="0.1.0"
+    assert by_id["nexora-practice"]["auto_install"] is True; assert by_id["nexora-bedwars"]["auto_install"] is True; assert by_id["nexora-skywars"]["auto_install"] is True
     assert by_id["silentbedwars"]["auto_install"] is False; assert by_id["powerskywars"]["auto_install"] is False
     assert "silentbedwars" in by_id["nexora-bedwars"].get("conflicts",[]) and "nexora-bedwars" in by_id["silentbedwars"].get("conflicts",[])
     assert "powerskywars" in by_id["nexora-skywars"].get("conflicts",[]) and "nexora-skywars" in by_id["powerskywars"].get("conflicts",[])
@@ -70,31 +72,14 @@ def validate_survival_isolation():
     s=ROOT/"instances"/"survival"
     for p in [s/"behavior_packs",s/"plugins",s/"pnx.yml",s/"world_behavior_packs.json"]: assert not p.exists()
 def validate_required_files():
-    required=[
-        "mcserver","scripts/ui.sh","scripts/socket-check.sh","scripts/launch-instance.sh","scripts/update-pnx.sh","scripts/pnx-jar-validator.py","scripts/bds-downloader.py",
-        "scripts/engine-manager.sh","scripts/plugin-manager.sh","scripts/minigame-manager.sh","scripts/network-manager.sh","scripts/install-addon.sh",
-        "scripts/normalize-permissions.sh","scripts/bootstrap-runtime.sh","scripts/firewall-manager.sh","tests/test_pnx_source_pin.py","tests/test_pnx_jar_validator.py",
-        "tests/test_socket_check.sh","tests/test_lobby_addon_permissions.sh","docs/README.md","systemd/bedrock@.service",
-        "pnx-plugins/nexora-practice/src/main/resources/plugin.yml","pnx-plugins/nexora-bedwars/src/main/resources/plugin.yml","pnx-plugins/nexora-skywars/src/main/resources/plugin.yml",
-    ]
+    required=["mcserver","scripts/ui.sh","scripts/socket-check.sh","scripts/launch-instance.sh","scripts/update-pnx.sh","scripts/pnx-jar-validator.py","scripts/bds-downloader.py","scripts/engine-manager.sh","scripts/plugin-manager.sh","scripts/minigame-manager.sh","scripts/network-manager.sh","scripts/install-addon.sh","scripts/normalize-permissions.sh","scripts/bootstrap-runtime.sh","scripts/firewall-manager.sh","tests/test_pnx_source_pin.py","tests/test_pnx_jar_validator.py","tests/test_socket_check.sh","tests/test_lobby_addon_permissions.sh","docs/README.md","systemd/bedrock@.service","pnx-plugins/nexora-practice/src/main/resources/plugin.yml","pnx-plugins/nexora-bedwars/src/main/resources/plugin.yml","pnx-plugins/nexora-skywars/src/main/resources/plugin.yml"]
     for rel in required: assert (ROOT/rel).is_file(),rel
 def validate_empty_service_state():
     with tempfile.TemporaryDirectory() as td:
-        bindir=Path(td)
-        systemctl=bindir/"systemctl"
-        systemctl.write_text("#!/usr/bin/env bash\nif [[ ${1:-} == is-active ]]; then exit 3; fi\nexit 0\n", encoding="utf-8")
-        systemctl.chmod(0o755)
+        bindir=Path(td); systemctl=bindir/"systemctl"
+        systemctl.write_text("#!/usr/bin/env bash\nif [[ ${1:-} == is-active ]]; then exit 3; fi\nexit 0\n",encoding="utf-8"); systemctl.chmod(0o755)
         envp=os.environ.copy(); envp["PATH"]=f"{bindir}:{envp['PATH']}"; envp["NO_COLOR"]="1"
-        command=f'''set -euo pipefail
-source "{ROOT}/scripts/lib.sh"
-out="$(active_instances)"
-[[ -z "$out" ]]
-start_instance_list "$out"
-none="$(instances_by_engine impossible)"
-[[ -z "$none" ]]
-start_engine impossible
-stop_engine impossible
-'''
+        command=f'''set -euo pipefail\nsource "{ROOT}/scripts/lib.sh"\nout="$(active_instances)"\n[[ -z "$out" ]]\nstart_instance_list "$out"\nnone="$(instances_by_engine impossible)"\n[[ -z "$none" ]]\nstart_engine impossible\nstop_engine impossible\n'''
         subprocess.run(["bash","-c",command],check=True,env=envp,cwd=ROOT)
 def validate_bds_downloader(): subprocess.run([os.environ.get("PYTHON","python3"),str(ROOT/"tests"/"test_bds_downloader.py")],check=True,cwd=ROOT)
 def validate_pnx_source_pin(): subprocess.run([os.environ.get("PYTHON","python3"),str(ROOT/"tests"/"test_pnx_source_pin.py")],check=True,cwd=ROOT)

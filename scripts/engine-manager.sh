@@ -14,26 +14,54 @@ Uso:
 Lobby y Survival están bloqueados a BDS.
 HELP
 }
+
+prop_from_template(){
+  local file="$1" key="$2"
+  awk -F= -v key="$key" '$1==key{print substr($0,index($0,"=")+1); exit}' "$file"
+}
+
 prepare_pnx(){
-  local instance target
+  local instance target template port level motd max_players allow_list
   instance="$1"
   target="$INSTANCES_DIR/$instance"
+  template="$APP_DIR/instances/$instance/server.properties"
+  [[ -f "$template" ]] || template="$SCRIPT_DIR/../instances/$instance/server.properties"
   [[ "$instance" == pvp || "$instance" == bedwars || "$instance" == skywars ]] || die "Instancia PNX inválida: $instance"
+  [[ -f "$template" ]] || die "Falta plantilla administrada para $instance"
+
+  port="$(prop_from_template "$template" server-port)"
+  level="$(prop_from_template "$template" level-name)"
+  motd="$(prop_from_template "$template" server-name)"
+  max_players="$(prop_from_template "$template" max-players)"
+  allow_list="$(prop_from_template "$template" allow-list)"
+  [[ "$port" =~ ^[0-9]+$ && "$port" -ge 1 && "$port" -le 65535 ]] || die "Puerto PNX inválido para $instance: ${port:-vacío}"
+  [[ -n "$level" ]] || die "level-name vacío para $instance"
+  [[ "$max_players" =~ ^[0-9]+$ ]] || max_players=20
+  [[ "$allow_list" == true || "$allow_list" == false ]] || allow_list=false
+
   mkdir -p "$target/plugins" "$target/worlds"
-  if [[ ! -f "$target/pnx.yml" ]]; then
-    cat > "$target/pnx.yml" <<'YAML'
+  install -m 0644 "$template" "$target/server.properties"
+
+  # PowerNukkitX 3.x toma los valores de red y nivel desde pnx.yml. La antigua
+  # configuración solo definía language y dejaba port/defaultLevelName en sus
+  # defaults (19132/world), provocando colisión con el Lobby.
+  cat > "$target/pnx.yml" <<YAML
 settings:
+  ip: 0.0.0.0
+  port: $port
+  maxPlayers: $max_players
+  defaultLevelName: "$level"
+  allowList: $allow_list
+  allowListMessage: "Servidor en lista blanca"
+  motd: "$motd"
+  sub-motd: "Nexora Bedrock Network"
   language: spa
   forceServerTranslate: false
-  shutdownMessage: Servidor cerrado
-  queryPlugins: false
-  deprecatedVerbose: true
-  asyncWorkers: auto
   safeSpawn: true
-  installSpark: true
-  waterdogpe: false
-  autosave: 6000
+  autoSave: true
+  autosaveDelay: 6000
   saveUnknownBlock: true
+  xboxAuth: true
 network-settings:
   compressionLevel: 7
   zlibProvider: 3
@@ -72,9 +100,10 @@ player-settings:
 gameplay-settings:
   enableCommandBlocks: true
 YAML
-  fi
   chown -R bedrock:bedrock "$target"
+  ok "$instance preparado para PNX en UDP/$port (nivel $level)"
 }
+
 apply_current_bds(){
   local instance="$1" release
   release="$(readlink -f "$CURRENT_LINK" 2>/dev/null || true)"

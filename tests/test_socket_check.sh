@@ -28,3 +28,5 @@ tcp_port_listening 8080
 ! tcp_port_listening 443
 
 echo "Socket detection regression passed."
+
+sudo bash "$ROOT/tests/test_pnx_managed_config.sh"
