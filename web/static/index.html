@@ -1,57 +1,24 @@
 <!doctype html>
 <html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#071019">
-  <meta name="description" content="Estado y modalidades del servidor Minecraft Bedrock Network.">
-  <title>Bedrock Network</title>
-  <link rel="stylesheet" href="/styles.css">
-</head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#071019"><meta name="description" content="Estado y modalidades del servidor Minecraft Bedrock Network."><title>Bedrock Network</title><link rel="stylesheet" href="/styles.css"></head>
 <body>
   <div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
-  <header class="nav wrap">
-    <a class="brand" href="#top"><span class="cube"></span><span data-network>Bedrock Network</span></a>
-    <nav><a href="#modes">Modos</a><a href="#status">Estado</a><a href="#connect">Conectar</a></nav>
-  </header>
+  <header class="nav wrap"><a class="brand" href="#top"><span class="cube"></span><span data-network>Bedrock Network</span></a><nav><a href="#modes">Modos</a><a href="#status">Estado</a><a href="#connect">Conectar</a></nav></header>
   <main id="top">
     <section class="hero wrap">
-      <div class="eyebrow"><span class="live-dot"></span> BEDROCK · SERVIDOR PRIVADO</div>
-      <h1>Un lobby.<br><span>Cinco experiencias.</span></h1>
-      <p class="lead">Survival persistente, PvP y minijuegos conectados desde una isla central. Diseñado para jugar juntos sin depender del host de un mundo local.</p>
-      <div class="connect-card" id="connect">
-        <div><small>DIRECCIÓN DEL SERVIDOR</small><strong id="serverAddress">Cargando…</strong></div>
-        <button id="copyAddress" type="button">Copiar dirección</button>
-      </div>
-      <div class="hero-stats">
-        <div><strong id="totalPlayers">—</strong><span>jugadores</span></div>
-        <div><strong id="bdsVersion">—</strong><span>versión BDS</span></div>
-        <div><strong id="networkState">—</strong><span>estado</span></div>
-      </div>
+      <div class="eyebrow"><span class="live-dot"></span> BEDROCK · RED HÍBRIDA</div><h1>Un lobby.<br><span>Cinco experiencias.</span></h1>
+      <p class="lead">Lobby y Survival sobre BDS oficial; PvP, BedWars y SkyWars sobre un motor de plugins PowerNukkitX compatible con Bedrock.</p>
+      <div class="connect-card" id="connect"><div><small>DIRECCIÓN DEL SERVIDOR</small><strong id="serverAddress">Cargando…</strong></div><button id="copyAddress" type="button">Copiar dirección</button></div>
+      <div class="hero-stats"><div><strong id="totalPlayers">—</strong><span>jugadores</span></div><div><strong id="runtimeVersion">—</strong><span>BDS / PNX</span></div><div><strong id="networkState">—</strong><span>estado</span></div></div>
     </section>
-
-    <section class="wrap section" id="modes">
-      <div class="section-head"><div><span>MODALIDADES</span><h2>Elige desde el lobby</h2></div><p>Los NPC y el selector del hub transfieren al jugador a la instancia correspondiente.</p></div>
-      <div class="mode-grid">
-        <article class="mode-card survival"><div class="icon">S</div><h3>Survival</h3><p>El mundo principal del grupo, conservado sin cheats y separado de los scripts de minijuegos.</p><span>Mundo persistente</span></article>
-        <article class="mode-card pvp"><div class="icon">P</div><h3>PvP</h3><p>Combates Solo, Duo y Escuadra con colas y arenas independientes.</p><span>1v1 · 2v2 · 4v4</span></article>
-        <article class="mode-card bedwars"><div class="icon">B</div><h3>BedWars</h3><p>Equipos, camas, generadores y partidas rápidas desde el hub.</p><span>Solo · Duo · Escuadra</span></article>
-        <article class="mode-card skywars"><div class="icon">K</div><h3>SkyWars</h3><p>Islas, cofres y combate hasta que quede el último equipo.</p><span>Solo · Duo · Escuadra</span></article>
-      </div>
-    </section>
-
-    <section class="wrap section" id="status">
-      <div class="section-head"><div><span>EN VIVO</span><h2>Estado de la red</h2></div><p>Datos obtenidos directamente de cada servidor Bedrock mediante su ping de red.</p></div>
-      <div id="serverGrid" class="server-grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
-      <p class="updated" id="updatedAt">Actualizando…</p>
-    </section>
-
-    <section class="wrap section safety">
-      <div><span class="tag">SURVIVAL PROTEGIDO</span><h2>Tu progreso se mantiene independiente.</h2></div>
-      <p>El Survival usa su propio mundo, configuración y backups. La administración de la red no necesita activar cheats en ese mundo para operar el lobby o los minijuegos.</p>
-    </section>
+    <section class="wrap section" id="modes"><div class="section-head"><div><span>MODALIDADES</span><h2>Elige desde el lobby</h2></div><p>Los NPC y el selector del hub transfieren al jugador a la instancia correspondiente.</p></div><div class="mode-grid">
+      <article class="mode-card survival"><div class="icon">S</div><h3>Survival</h3><p>BDS oficial, mundo persistente sin cheats y aislado de todos los plugins.</p><span>Mundo persistente</span></article>
+      <article class="mode-card pvp"><div class="icon">P</div><h3>PvP</h3><p>Motor PowerNukkitX con plugin de práctica para Solo, Duo y Escuadra.</p><span>1v1 · 2v2 · 4v4</span></article>
+      <article class="mode-card bedwars"><div class="icon">B</div><h3>BedWars</h3><p>PowerNukkitX y plugin administrado desde un catálogo con versión fijada.</p><span>Solo · Duo · Escuadra</span></article>
+      <article class="mode-card skywars"><div class="icon">K</div><h3>SkyWars</h3><p>PowerNukkitX y plugin administrado para arenas, cofres y partidas.</p><span>Solo · Duo · Escuadra</span></article>
+    </div></section>
+    <section class="wrap section" id="status"><div class="section-head"><div><span>EN VIVO</span><h2>Estado de la red</h2></div><p>El ping Bedrock funciona tanto con BDS como con PowerNukkitX.</p></div><div id="serverGrid" class="server-grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div><p class="updated" id="updatedAt">Actualizando…</p></section>
+    <section class="wrap section safety"><div><span class="tag">SURVIVAL PROTEGIDO</span><h2>Los plugins no entran en tu mundo principal.</h2></div><p>La arquitectura híbrida mantiene Survival en BDS oficial. PowerNukkitX y los plugins existen únicamente en PvP, BedWars y SkyWars.</p></section>
   </main>
-  <footer class="wrap"><span data-network>Bedrock Network</span><span>Minecraft Bedrock Dedicated Server</span></footer>
-  <script src="/app.js" defer></script>
-</body>
-</html>
+  <footer class="wrap"><span data-network>Bedrock Network</span><span>BDS oficial + PowerNukkitX</span></footer><script src="/app.js" defer></script>
+</body></html>

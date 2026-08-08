@@ -1,26 +1,29 @@
 # Minecraft Bedrock Network
 
-Red autoadministrable para Minecraft Bedrock basada en **Bedrock Dedicated Server oficial**. Incluye Lobby, Survival, PvP, BedWars, SkyWars, actualización segura, backups, GitHub Actions y una web pública de estado.
+Red híbrida para Minecraft Bedrock **26.40** orientada a un grupo privado: Lobby, Survival persistente, PvP, BedWars y SkyWars administrados desde una sola CLI.
 
 ## Arquitectura
 
 ```text
-                         UDP 19132
-Jugador  ───────────────► LOBBY
-                             │
-                 ┌───────────┼───────────┐
-                 │           │           │
-                 ▼           ▼           ▼
-             SURVIVAL       PVP      MINIJUEGOS
-              :19133       :19134     ├─ BedWars :19135
-                                     └─ SkyWars :19136
+Jugador Bedrock
+      |
+      | UDP 19132
+      v
++-------------+
+|    LOBBY    |  BDS oficial + addon del hub
++------+------+ 
+       |
+       +--> Survival :19133  BDS oficial, sin plugins, cheats=false
+       +--> PvP      :19134  PowerNukkitX + NexoraPractice
+       +--> BedWars  :19135  PowerNukkitX + plugin administrado
+       +--> SkyWars  :19136  PowerNukkitX + plugin administrado
 ```
 
-El lobby es una **isla flotante** con zona central y cuatro plataformas de acceso. El comando `!buildhub` genera su estructura base después de asignar al administrador la etiqueta `network.admin`.
+PowerNukkitX se usa **solo para minijuegos**. Lobby y Survival están bloqueados a BDS por diseño.
 
 ## Survival y logros
 
-Survival está deliberadamente aislado:
+El template de Survival exige:
 
 ```ini
 gamemode=survival
@@ -30,156 +33,120 @@ online-mode=true
 allow-list=true
 ```
 
-- no recibe el Behavior Pack del lobby;
-- no recibe los Behavior Packs de minijuegos;
-- el importador copia `level.dat` sin modificarlo;
-- las actualizaciones de BDS no reemplazan el directorio `worlds/`;
-- GitHub Actions falla si las propiedades de seguridad del template Survival cambian.
+Además:
 
-> Si el mundo ya perdió previamente la elegibilidad para logros, moverlo al servidor no la restaura. El objetivo aquí es no introducir cambios que la deshabiliten en un mundo que todavía la conserva.
+- `SURVIVAL_ENGINE=bds` no puede cambiarse mediante `mcserver engine`;
+- no se instalan plugins PNX ni Behavior Packs de minijuegos en Survival;
+- `import-survival` copia `level.dat` sin modificarlo;
+- una instalación nueva crea `state/survival-pending-import`, por lo que no se genera un Survival vacío antes de importar tu mundo;
+- los backups incluyen mundo, configuración y estado antes de actualizaciones/cambios de motor.
 
-# Instalación: un comando
+> Si el mundo ya perdió previamente la elegibilidad para logros, moverlo al servidor no la restaura. El proyecto está diseñado para no introducir cambios que deshabiliten los logros en un mundo que todavía los conserva.
 
-En Ubuntu 22.04/24.04 AMD64/x86_64:
+## Instalación con un comando
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/Gh0stDeveloper/MinecraftServer/main/install.sh | bash
-```
-
-El asistente solicita la IP o dominio público y hace la instalación completa.
-
-No interactivo:
+Ubuntu 22.04/24.04 AMD64/x86_64:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Gh0stDeveloper/MinecraftServer/main/install.sh | sudo bash -s -- --host play.example.com
+curl -fsSL https://raw.githubusercontent.com/Gh0stDeveloper/MinecraftServer/main/install.sh | sudo bash -s -- --host TU_IP_O_DOMINIO
 ```
 
-También funciona desde un clone:
+Instala BDS, Java 21, PowerNukkitX, plugins administrados, systemd, backups, firewall y página pública.
+
+Después importa tu mundo:
 
 ```bash
-git clone https://github.com/Gh0stDeveloper/MinecraftServer.git
-cd MinecraftServer
-sudo ./mcserver install --host play.example.com
+sudo mcserver import-survival "/ruta/a/TuMundo"
 ```
 
-## Administración diaria
+## Administración
 
 ```bash
 mcserver status
 sudo mcserver doctor
 sudo mcserver backup
 sudo mcserver restart
-sudo mcserver logs survival
+sudo mcserver update
 ```
 
-## Actualizar todo
+### Motores
+
+```bash
+mcserver engine status
+sudo mcserver engine set bedwars pnx
+sudo mcserver engine set bedwars bds
+```
+
+Solo `pvp`, `bedwars` y `skywars` pueden cambiar entre `pnx` y `bds`. Cada cambio hace backup y rollback si el nuevo motor no inicia.
+
+### Plugins
+
+```bash
+sudo mcserver plugins list
+sudo mcserver plugins doctor
+sudo mcserver plugins sync
+sudo mcserver plugins install powerskywars
+```
+
+El catálogo está en `config/plugins.json`. Las fuentes de terceros están fijadas a commits concretos; no se redistribuyen sus JAR dentro de este repositorio.
+
+Catálogo inicial:
+
+| Instancia | Plugin | Fuente |
+|---|---|---|
+| PvP | NexoraPractice | propio, Maven |
+| BedWars | SilentBedwars | upstream fijado, Gradle |
+| SkyWars | PowerSkywars | upstream fijado, Gradle |
+
+GitHub Actions recompila esos plugins para detectar incompatibilidades antes de aceptar cambios.
+
+## Actualizaciones
 
 ```bash
 sudo mcserver update
 ```
 
-Ese comando sincroniza la versión del proyecto y comprueba BDS. Cuando existe un BDS más nuevo:
+Actualiza secuencialmente proyecto/web/scripts, BDS, PowerNukkitX, plugins fijados y ejecuta un diagnóstico final. Los updaters recuerdan qué instancias estaban activas y no arrancan durante una actualización servidores que estuvieran detenidos.
 
-1. descarga el ZIP en staging;
-2. exige que el archivo venga de un dominio oficial de Minecraft;
-3. detiene las cinco instancias;
-4. crea backup;
-5. comprueba nuevamente que Survival tenga cheats desactivados;
-6. aplica los archivos de runtime sin reemplazar mundos, configuración, allowlists o permisos;
-7. inicia y valida las instancias;
-8. permite rollback al runtime anterior.
-
-El software BDS se obtiene del CDN oficial. Para descubrir de forma automatizable el número/URL de la versión estable se utiliza el índice de `Bedrock-OSS/BDS-Versions`; el resolver rechaza cualquier `download_url` que no apunte a un host oficial permitido de Minecraft.
-
-Solo BDS:
+También puedes actualizar por componente:
 
 ```bash
 sudo mcserver update bds
-```
-
-Solo proyecto/web:
-
-```bash
+sudo mcserver update pnx
+sudo mcserver update plugins
 sudo mcserver update project
 ```
 
 Rollback:
 
 ```bash
-sudo mcserver rollback 1.26.40.1
+sudo mcserver rollback bds VERSION
+sudo mcserver rollback pnx RELEASE
 ```
 
-Auto-update BDS opcional:
+Auto-update opcional:
 
 ```bash
 sudo mcserver auto-update enable
 ```
 
-Está desactivado de fábrica.
+## Página oficial
 
-# Página oficial del servidor
+La instalación levanta la web en `http://TU_IP:8080`. Muestra jugadores, estado, puerto, motor (`BDS oficial`/`PowerNukkitX`) y versiones de runtime mediante ping Bedrock nativo.
 
-La instalación levanta automáticamente una web pública en:
-
-```text
-http://IP_O_DOMINIO:8080
-```
-
-Incluye:
-
-- estado en vivo de las cinco instancias;
-- número de jugadores mediante ping Bedrock;
-- versión BDS;
-- dirección del lobby con botón para copiar;
-- descripción de Survival/PvP/BedWars/SkyWars;
-- diseño responsive para teléfono y escritorio.
-
-Para poner un dominio delante con Nginx:
+Dominio y HTTPS:
 
 ```bash
 sudo mcserver web domain mc.example.com
-```
-
-Y HTTPS:
-
-```bash
 sudo mcserver web https mc.example.com correo@example.com
 ```
 
-# Importar tu mundo avanzado
+## Lobby
 
-Guarda primero una copia original fuera del servidor y ejecuta:
+El lobby sigue siendo una isla flotante BDS. Después de dar la etiqueta `network.admin` al constructor, `!buildhub` crea el hub base con plataformas para Survival, PvP, BedWars y SkyWars.
 
-```bash
-sudo mcserver import-survival "/ruta/al/Mundo"
-```
+## GitHub Actions
 
-El importador verifica `level.dat` y `db/`, detiene Survival, hace backup del mundo existente y copia la nueva carpeta sin editar `level.dat`.
+CI valida configuración BDS y protección de Survival, arquitectura híbrida, sintaxis, catálogo/commits fijados, compilación del plugin PvP propio, compilación de BedWars/SkyWars, resolver BDS, smoke test de la web y artifact desplegable.
 
-# GitHub Actions
-
-Cada push/PR valida:
-
-- estructura y JSON;
-- manifests y UUID;
-- puertos;
-- aislamiento de Survival;
-- propiedades de seguridad de logros;
-- sintaxis Bash;
-- sintaxis JavaScript;
-- sintaxis Python;
-- resolver de actualizaciones BDS, incluyendo rechazo de URLs no oficiales;
-- smoke test de la web;
-- empaquetado del proyecto como artifact.
-
-# Documentación
-
-- [`docs/ADMIN_GUIDE.md`](docs/ADMIN_GUIDE.md): instalación, actualización, rollback, web y mantenimiento.
-- [`docs/SURVIVAL_IMPORT.md`](docs/SURVIVAL_IMPORT.md): migración del mundo.
-- [`docs/LOBBY_SETUP.md`](docs/LOBBY_SETUP.md): isla flotante y preparación del hub.
-- [`docs/PORTS.md`](docs/PORTS.md): puertos.
-- [`docs/NEXT_PHASE.md`](docs/NEXT_PHASE.md): minijuegos y siguientes fases.
-
-## Estado del proyecto
-
-La infraestructura, administración y lobby base están preparados. PvP/BedWars/SkyWars ya tienen el framework inicial de colas; las siguientes fases completarán `ArenaManager`, mapas, equipos, generadores, tiendas, camas, loot, espectador, reset de arenas y estadísticas persistentes.
+Consulta `docs/PLUGIN_ENGINES.md` para el diseño de motores y plugins.
