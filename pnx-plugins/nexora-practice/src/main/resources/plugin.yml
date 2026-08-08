@@ -1,0 +1,14 @@
+name: NexoraPractice
+main: dev.gh0stdeveloper.minecraft.practice.NexoraPractice
+version: "0.1.0"
+api: "2.0.0"
+load: POSTWORLD
+author: Gh0stDeveloper
+description: PvP practice queues for the MinecraftServer PowerNukkitX engine.
+commands:
+  pvp:
+    description: Entrar o salir de las colas PvP.
+    usage: "/pvp <solo|duo|squad|leave>"
+  lobby:
+    description: Volver al lobby principal.
+    usage: "/lobby"

@@ -1,5 +1,5 @@
 [Unit]
-Description=Minecraft Bedrock Dedicated Server (%i)
+Description=Minecraft Bedrock Network instance (%i)
 After=network-online.target
 Wants=network-online.target
 
@@ -8,12 +8,11 @@ Type=simple
 User=bedrock
 Group=bedrock
 WorkingDirectory=/opt/bedrock-network/instances/%i
-Environment=LD_LIBRARY_PATH=/opt/bedrock-network/instances/%i
-ExecStart=/opt/bedrock-network/instances/%i/bedrock_server
+ExecStart=/opt/bedrock-network/app/scripts/launch-instance.sh %i
 Restart=on-failure
 RestartSec=5
 KillSignal=SIGINT
-TimeoutStopSec=45
+TimeoutStopSec=60
 LimitNOFILE=65535
 Nice=-2
 

@@ -1,7 +1,8 @@
-# BDS runtime files
+# BDS / PowerNukkitX runtime files
 bedrock_server
 bedrock_server_how_to.html
 libCrypto.so
+powernukkitx-shaded.jar
 *.log
 
 # Generated worlds and runtime state
@@ -10,8 +11,17 @@ instances/*/behavior_packs/
 instances/*/resource_packs/
 instances/*/development_behavior_packs/
 instances/*/development_resource_packs/
+instances/*/plugins/
+instances/*/players/
+instances/*/pnx.yml
 instances/*/*.db
 instances/*/Dedicated_Server.txt
+
+# Build outputs
+target/
+build/
+.gradle/
+plugin-build/
 
 # Backups and downloaded server packages
 backups/
@@ -21,6 +31,7 @@ backups/
 # Local configuration
 .env
 config/network.local.env
+config/engines.local.env
 
 # Editors / OS
 .DS_Store

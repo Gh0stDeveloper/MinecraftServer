@@ -1,8 +1,8 @@
 [Unit]
-Description=Check and install Minecraft Bedrock Dedicated Server updates
+Description=Update Minecraft Bedrock Network runtimes, plugins and project
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/mcserver update bds --yes
+ExecStart=/usr/local/bin/mcserver update

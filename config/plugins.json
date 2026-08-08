@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "plugins": [
+    {
+      "id": "nexora-practice",
+      "name": "Nexora Practice",
+      "instance": "pvp",
+      "engine": "pnx",
+      "source_type": "local-maven",
+      "source": "pnx-plugins/nexora-practice",
+      "artifact": "target/nexora-practice-0.1.0.jar",
+      "license": "PROJECT",
+      "ref": "project",
+      "auto_install": true,
+      "description": "Plugin PNX propio para colas Solo, Duo y Escuadra; sustituye el Behavior Pack de PvP.",
+      "version": "0.1.0",
+      "minecraft": "26.40",
+      "api": "2.0.0"
+    },
+    {
+      "id": "silentbedwars",
+      "name": "SilentBedwars",
+      "instance": "bedwars",
+      "engine": "pnx",
+      "source_type": "git-gradle",
+      "ref": "e441c2f96619fcc20ee382ee2a44017cfcb3fd35",
+      "build": "shadowJar",
+      "artifact_glob": "build/libs/SilentBedwars-*.jar",
+      "license": "NOASSERTION",
+      "redistribute": false,
+      "auto_install": true,
+      "description": "BedWars para PowerNukkitX. Se compila directamente desde el repositorio del autor; el proyecto no redistribuye su código ni binario.",
+      "source": "https://github.com/SilentWolf6662/SilentBedwars.git",
+      "minecraft": "26.40",
+      "api": "2.0.0"
+    },
+    {
+      "id": "powerskywars",
+      "name": "PowerSkywars",
+      "instance": "skywars",
+      "engine": "pnx",
+      "source_type": "git-gradle",
+      "ref": "611466227c6a6435f527dc970d241f580dea090d",
+      "build": "jar",
+      "artifact_glob": "build/libs/*.jar",
+      "license": "GPL-3.0-only",
+      "redistribute": false,
+      "auto_install": true,
+      "description": "SkyWars para PowerNukkitX, compilado desde una referencia fijada y validada por CI.",
+      "source": "https://github.com/VenityNetwork/PowerSkywars.git",
+      "minecraft": "26.40",
+      "api": "2.0.0"
+    }
+  ]
+}
