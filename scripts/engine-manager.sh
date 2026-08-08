@@ -87,22 +87,40 @@ status(){
   printf '\nBDS: %s\nPNX: %s\n' "$(current_bds_version)" "$(current_pnx_version)"
 }
 set_engine(){
-  local instance="$1" engine="$2" key old backup
+  local instance="$1" engine="$2" key old backup was_active target_was_active=0
   [[ "$instance" == pvp || "$instance" == bedwars || "$instance" == skywars ]] || die "Solo pvp, bedwars y skywars pueden cambiar de motor."
   [[ "$engine" == bds || "$engine" == pnx ]] || die "Motor inválido: $engine"
   mkdir -p "$CONFIG_DIR"; [[ -f "$ENGINES_FILE" ]] || cp "$APP_DIR/config/engines.env" "$ENGINES_FILE"
   old="$(engine_for "$instance")"; [[ "$old" != "$engine" ]] || { ok "$instance ya usa $engine."; exit 0; }
-  key="${instance^^}_ENGINE"; lock_manager; stop_network; backup="$("$APP_DIR/scripts/network-backup.sh" --online-stopped | tail -n1)"
+  key="${instance^^}_ENGINE"; lock_manager
+  was_active="$(active_instances)"
+  grep -qx "$instance" <<<"$was_active" && target_was_active=1 || true
+  stop_network
+  backup="$("$APP_DIR/scripts/network-backup.sh" --online-stopped | tail -n1)"
   if grep -q "^${key}=" "$ENGINES_FILE"; then sed -i "s/^${key}=.*/${key}=${engine}/" "$ENGINES_FILE"; else printf '%s=%s\n' "$key" "$engine" >> "$ENGINES_FILE"; fi
   if [[ "$engine" == pnx ]]; then
-    if [[ ! -f "$PNX_CURRENT_LINK/powernukkitx-shaded.jar" ]]; then sed -i "s/^${key}=.*/${key}=${old}/" "$ENGINES_FILE"; start_network; die "PNX no está instalado. Ejecuta sudo mcserver update pnx."; fi
+    if [[ ! -f "$PNX_CURRENT_LINK/powernukkitx-shaded.jar" ]]; then
+      sed -i "s/^${key}=.*/${key}=${old}/" "$ENGINES_FILE"
+      start_instance_list "$was_active"
+      die "PNX no está instalado. Ejecuta sudo mcserver update pnx."
+    fi
     prepare_pnx "$instance"
-  else apply_current_bds "$instance"; fi
-  chown root:bedrock "$ENGINES_FILE"; chmod 0640 "$ENGINES_FILE"; start_network; sleep 3
-  if ! systemctl is-active --quiet "bedrock@$instance.service"; then
-    stop_network; sed -i "s/^${key}=.*/${key}=${old}/" "$ENGINES_FILE"; [[ "$old" == bds ]] && apply_current_bds "$instance" || prepare_pnx "$instance"; start_network; die "$instance no pudo iniciar con $engine. Se restauró $old. Backup: $backup"
+  else
+    apply_current_bds "$instance"
   fi
-  ok "$instance usa ahora $engine. Backup: $backup"
+  chown root:bedrock "$ENGINES_FILE"; chmod 0640 "$ENGINES_FILE"
+  start_instance_list "$was_active"
+  if (( target_was_active )); then
+    sleep 3
+    if ! systemctl is-active --quiet "bedrock@$instance.service"; then
+      stop_network
+      sed -i "s/^${key}=.*/${key}=${old}/" "$ENGINES_FILE"
+      [[ "$old" == bds ]] && apply_current_bds "$instance" || prepare_pnx "$instance"
+      start_instance_list "$was_active"
+      die "$instance no pudo iniciar con $engine. Se restauró $old. Backup: $backup"
+    fi
+  fi
+  ok "$instance usa ahora $engine. Se conservó el estado online/offline previo. Backup: $backup"
 }
 case "${1:-status}" in
   status) status;;
