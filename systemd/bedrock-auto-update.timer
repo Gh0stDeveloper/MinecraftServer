@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Minecraft Bedrock Dedicated Server update check
+
+[Timer]
+OnCalendar=*-*-* 04:20:00
+RandomizedDelaySec=20m
+Persistent=true
+
+[Install]
+WantedBy=timers.target
