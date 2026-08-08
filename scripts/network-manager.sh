@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/lib.sh"
+source "$SCRIPT_DIR/socket-check.sh"
 require_root
 source_config
 
@@ -62,7 +63,7 @@ verify(){
       log "UDP/$port Survival pendiente de importación; es normal que aún no escuche."
       continue
     fi
-    if ss -H -lun 2>/dev/null | awk '{print $5}' | grep -Eq "(:|\])${port}$"; then
+    if udp_port_listening "$port"; then
       ok "UDP/$port escuchando ($instance)"
     else
       state="$(service_state "$instance")"
@@ -77,7 +78,7 @@ bedwars:$BEDWARS_PORT
 skywars:$SKYWARS_PORT
 EOF
 
-  if ss -H -ltn 2>/dev/null | awk '{print $4}' | grep -Eq "(:|\])${WEB_PORT}$"; then
+  if tcp_port_listening "$WEB_PORT"; then
     ok "TCP/$WEB_PORT web escuchando"
   else
     state="$(systemctl is-active bedrock-web.service 2>/dev/null || printf 'inactive')"
