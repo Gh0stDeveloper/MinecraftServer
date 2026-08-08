@@ -23,7 +23,8 @@ if ! id bedrock >/dev/null 2>&1; then useradd --system --create-home --home-dir 
 mkdir -p "$APP_DIR" "$ROOT"/{bds/releases,pnx/releases,instances,backups,state,config,cache,addons,scripts,plugin-build,minigames,uploads}
 rsync -a --delete --exclude='.git' --exclude='*.zip' --exclude='*.tar.gz' "$SOURCE_ROOT/" "$APP_DIR/"
 rsync -a --delete "$APP_DIR/scripts/" "$ROOT/scripts/"; rsync -a --delete "$APP_DIR/addons/" "$ROOT/addons/"
-chmod +x "$APP_DIR/mcserver" "$APP_DIR/install.sh" "$ROOT/scripts"/*.sh "$ROOT/scripts/bds-resolver.py" 2>/dev/null || true
+# Permisos provisionales para poder continuar incluso si GitHub entregó scripts 0644.
+chmod 0755 "$APP_DIR/mcserver" "$APP_DIR/install.sh" 2>/dev/null || true
 ln -sfn "$APP_DIR/mcserver" /usr/local/bin/mcserver
 TEMPLATE_IP="$(awk -F= '$1=="PUBLIC_IP"{gsub(/[\"[:space:]]/,"",$2); print $2; exit}' "$APP_DIR/config/network.env" 2>/dev/null || true)"
 TEMPLATE_DOMAIN="$(awk -F= '$1=="PUBLIC_DOMAIN"{gsub(/[\"[:space:]]/,"",$2); print $2; exit}' "$APP_DIR/config/network.env" 2>/dev/null || true)"
@@ -43,27 +44,33 @@ if grep -q '^PUBLIC_DOMAIN=' "$CONFIG"; then sed -i "s|^PUBLIC_DOMAIN=.*|PUBLIC_
 sed -i "s|^PUBLIC_HOST=.*|PUBLIC_HOST=$HOST|" "$CONFIG"; sed -i "s|^WEB_PORT=.*|WEB_PORT=$WEB_PORT|" "$CONFIG"
 chmod 0640 "$CONFIG" "$ENGINES"; chown root:bedrock "$CONFIG" "$ENGINES"
 for INSTANCE in lobby survival pvp bedwars skywars; do TARGET="$ROOT/instances/$INSTANCE"; mkdir -p "$TARGET"; [[ -f "$TARGET/server.properties" ]] || cp "$APP_DIR/instances/$INSTANCE/server.properties" "$TARGET/"; [[ -f "$TARGET/allowlist.json" ]] || cp "$APP_DIR/instances/$INSTANCE/allowlist.json" "$TARGET/"; [[ -f "$TARGET/permissions.json" ]] || cp "$APP_DIR/instances/$INSTANCE/permissions.json" "$TARGET/"; done
-chown -R bedrock:bedrock "$ROOT"; chown root:bedrock "$CONFIG" "$ENGINES"
+
+# Runtime/data pertenecen al usuario de servicio; luego endurecemos únicamente
+# el árbol de código y scripts para que no sea modificable por el proceso web.
+chown -R bedrock:bedrock "$ROOT"
+chown root:bedrock "$CONFIG" "$ENGINES"
 if [[ ! -f "$ROOT/instances/survival/worlds/SurvivalWorld/level.dat" ]]; then touch "$ROOT/state/survival-pending-import"; chown bedrock:bedrock "$ROOT/state/survival-pending-import"; fi
+bash "$APP_DIR/scripts/normalize-permissions.sh"
+
 source "$APP_DIR/scripts/lib.sh"; install_units
-"$APP_DIR/scripts/update-bds.sh" "$BDS_VERSION"
-"$APP_DIR/scripts/update-pnx.sh" latest
-"$APP_DIR/scripts/engine-manager.sh" prepare
+bash "$APP_DIR/scripts/update-bds.sh" "$BDS_VERSION"
+bash "$APP_DIR/scripts/update-pnx.sh" latest
+bash "$APP_DIR/scripts/engine-manager.sh" prepare
 systemctl start bedrock@lobby.service
 LEVEL="$(awk -F= '$1=="level-name"{print substr($0,index($0,"=")+1)}' "$ROOT/instances/lobby/server.properties")"
 TRY=0; while [[ ! -d "$ROOT/instances/lobby/worlds/$LEVEL" && $TRY -lt 30 ]]; do sleep 1; TRY=$((TRY+1)); done
 systemctl stop bedrock@lobby.service || true
 [[ -d "$ROOT/instances/lobby/worlds/$LEVEL" ]] || { echo "No se creó el mundo del lobby: $LEVEL" >&2; exit 1; }
-"$APP_DIR/scripts/plugin-manager.sh" sync
-"$APP_DIR/scripts/minigame-manager.sh" prepare
-"$APP_DIR/scripts/render-lobby-config.sh"
-"$APP_DIR/scripts/install-addon.sh" lobby "$ROOT/addons/lobby_bp"
+bash "$APP_DIR/scripts/plugin-manager.sh" sync
+bash "$APP_DIR/scripts/minigame-manager.sh" prepare
+bash "$APP_DIR/scripts/render-lobby-config.sh"
+bash "$APP_DIR/scripts/install-addon.sh" lobby "$ROOT/addons/lobby_bp"
 source "$CONFIG"
 for PORT in "$LOBBY_PORT" "$SURVIVAL_PORT" "$PVP_PORT" "$BEDWARS_PORT" "$SKYWARS_PORT"; do ufw allow "$PORT/udp" >/dev/null 2>&1 || true; done
 ufw allow "$WEB_PORT/tcp" >/dev/null 2>&1 || true
 systemctl enable --now bedrock-web.service; start_network
-if [[ ! -s "$ROOT/config/web-admin.token.sha256" ]]; then "$APP_DIR/scripts/web-setup.sh" admin-token; fi
-[[ -n "$DOMAIN" ]] && "$APP_DIR/scripts/web-setup.sh" domain "$DOMAIN"
-"$APP_DIR/scripts/check-survival-safety.sh" "$ROOT/instances/survival/server.properties"
+if [[ ! -s "$ROOT/config/web-admin.token.sha256" ]]; then bash "$APP_DIR/scripts/web-setup.sh" admin-token; fi
+[[ -n "$DOMAIN" ]] && bash "$APP_DIR/scripts/web-setup.sh" domain "$DOMAIN"
+bash "$APP_DIR/scripts/check-survival-safety.sh" "$ROOT/instances/survival/server.properties"
 DNS_STATE="sin dominio"; if [[ -n "$DOMAIN" ]]; then if domain_matches_ip "$DOMAIN" "$PUBLIC_IP"; then DNS_STATE="$DOMAIN -> $PUBLIC_IP (OK)"; else DNS_STATE="$DOMAIN todavía no resuelve a $PUBLIC_IP"; fi; fi
-printf '\n[OK] Instalación híbrida terminada.\nMinecraft: %s:%s\nIP pública: %s\nDNS: %s\nWeb: http://%s:%s\nPanel admin: http://%s:%s/admin.html\n\nMotores: lobby=bds survival=bds pvp=pnx bedwars=pnx skywars=pnx\nPvP, BedWars y SkyWars quedan disponibles automáticamente con los motores Nexora nativos.\nUsa: sudo mcserver minigames status\nUsa: sudo mcserver network verify\n' "$HOST" "$LOBBY_PORT" "$PUBLIC_IP" "$DNS_STATE" "$HOST" "$WEB_PORT" "$HOST" "$WEB_PORT"
+printf '\n[OK] Instalación híbrida terminada.\nMinecraft: %s:%s\nIP pública: %s\nDNS: %s\nWeb: http://%s:%s\nPanel admin: requiere HTTPS en https://%s/admin.html\n\nMotores: lobby=bds survival=bds pvp=pnx bedwars=pnx skywars=pnx\nPvP, BedWars y SkyWars quedan disponibles automáticamente con los motores Nexora nativos.\nUsa: sudo mcserver minigames status\nUsa: sudo mcserver network verify\n' "$HOST" "$LOBBY_PORT" "$PUBLIC_IP" "$DNS_STATE" "$HOST" "$WEB_PORT" "${DOMAIN:-$HOST}"
