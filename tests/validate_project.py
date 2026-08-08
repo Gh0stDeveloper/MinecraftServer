@@ -3,6 +3,7 @@ from __future__ import annotations
 import ipaddress
 import json
 import os
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -31,7 +32,11 @@ def validate_deployment():
 def validate_engines():
     e=env(ROOT/"config"/"engines.env"); assert e.get("LOBBY_ENGINE")=="bds"; assert e.get("SURVIVAL_ENGINE")=="bds"
     for k in ("PVP_ENGINE","BEDWARS_ENGINE","SKYWARS_ENGINE"): assert e.get(k)=="pnx"
-    assert e.get("PNX_EXPECTED_MINECRAFT")=="26.40"; assert int(e.get("PNX_JAVA_MIN","0"))>=21
+    assert e.get("PNX_EXPECTED_VERSION")=="3.0.2"
+    assert e.get("PNX_EXPECTED_MINECRAFT")=="26.40"
+    assert int(e.get("PNX_JAVA_MIN","0"))>=21
+    assert e.get("PNX_SOURCE_REPO")=="https://github.com/PowerNukkitX/PowerNukkitX.git"
+    assert re.fullmatch(r"[0-9a-f]{40}",e.get("PNX_SOURCE_REF",""))
 def validate_json():
     for p in ROOT.rglob("*.json"):
         if any(part in {"target","build"} for part in p.parts): continue
@@ -72,6 +77,7 @@ def validate_required_files():
         "scripts/normalize-permissions.sh",
         "scripts/bootstrap-runtime.sh",
         "scripts/firewall-manager.sh",
+        "tests/test_pnx_source_pin.py",
         "systemd/bedrock@.service",
         "pnx-plugins/nexora-practice/src/main/resources/plugin.yml",
         "pnx-plugins/nexora-bedwars/src/main/resources/plugin.yml",
@@ -79,9 +85,6 @@ def validate_required_files():
     ]
     for rel in required: assert (ROOT/rel).is_file(),rel
 def validate_empty_service_state():
-    # Reproduce a fresh/interrupted install where no bedrock@ service was active.
-    # Every helper that consumes that empty list must remain successful under
-    # `set -e`, including the post-activation restart path used by BDS and PNX.
     with tempfile.TemporaryDirectory() as td:
         bindir=Path(td)
         systemctl=bindir/"systemctl"
@@ -102,6 +105,8 @@ stop_engine impossible
         subprocess.run(["bash","-c",command],check=True,env=envp,cwd=ROOT)
 def validate_bds_downloader():
     subprocess.run([os.environ.get("PYTHON", "python3"), str(ROOT/"tests"/"test_bds_downloader.py")], check=True, cwd=ROOT)
+def validate_pnx_source_pin():
+    subprocess.run([os.environ.get("PYTHON", "python3"), str(ROOT/"tests"/"test_pnx_source_pin.py")], check=True, cwd=ROOT)
 def main():
-    validate_instances(); validate_deployment(); validate_engines(); validate_json(); validate_manifests(); validate_plugins(); validate_survival_isolation(); validate_required_files(); validate_empty_service_state(); validate_bds_downloader(); print("All native-minigame BedrockNetwork checks passed.")
+    validate_instances(); validate_deployment(); validate_engines(); validate_json(); validate_manifests(); validate_plugins(); validate_survival_isolation(); validate_required_files(); validate_empty_service_state(); validate_bds_downloader(); validate_pnx_source_pin(); print("All native-minigame BedrockNetwork checks passed.")
 if __name__=="__main__": main()
