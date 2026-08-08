@@ -20,7 +20,7 @@ apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl unzip rsync tar python3 jq git maven openjdk-21-jdk-headless ufw nginx util-linux iproute2
 java -version 2>&1 | grep -Eq 'version "(21|2[2-9]|[3-9][0-9])' || { echo 'Se requiere Java 21+ para PowerNukkitX.' >&2; exit 1; }
 if ! id bedrock >/dev/null 2>&1; then useradd --system --create-home --home-dir "$ROOT" --shell /usr/sbin/nologin bedrock; fi
-mkdir -p "$APP_DIR" "$ROOT"/{bds/releases,pnx/releases,instances,backups,state,config,cache,addons,scripts,plugin-build,minigames}
+mkdir -p "$APP_DIR" "$ROOT"/{bds/releases,pnx/releases,instances,backups,state,config,cache,addons,scripts,plugin-build,minigames,uploads}
 rsync -a --delete --exclude='.git' --exclude='*.zip' --exclude='*.tar.gz' "$SOURCE_ROOT/" "$APP_DIR/"
 rsync -a --delete "$APP_DIR/scripts/" "$ROOT/scripts/"; rsync -a --delete "$APP_DIR/addons/" "$ROOT/addons/"
 chmod +x "$APP_DIR/mcserver" "$APP_DIR/install.sh" "$ROOT/scripts"/*.sh "$ROOT/scripts/bds-resolver.py" 2>/dev/null || true
@@ -62,7 +62,8 @@ source "$CONFIG"
 for PORT in "$LOBBY_PORT" "$SURVIVAL_PORT" "$PVP_PORT" "$BEDWARS_PORT" "$SKYWARS_PORT"; do ufw allow "$PORT/udp" >/dev/null 2>&1 || true; done
 ufw allow "$WEB_PORT/tcp" >/dev/null 2>&1 || true
 systemctl enable --now bedrock-web.service; start_network
+if [[ ! -s "$ROOT/config/web-admin.token.sha256" ]]; then "$APP_DIR/scripts/web-setup.sh" admin-token; fi
 [[ -n "$DOMAIN" ]] && "$APP_DIR/scripts/web-setup.sh" domain "$DOMAIN"
 "$APP_DIR/scripts/check-survival-safety.sh" "$ROOT/instances/survival/server.properties"
 DNS_STATE="sin dominio"; if [[ -n "$DOMAIN" ]]; then if domain_matches_ip "$DOMAIN" "$PUBLIC_IP"; then DNS_STATE="$DOMAIN -> $PUBLIC_IP (OK)"; else DNS_STATE="$DOMAIN todavía no resuelve a $PUBLIC_IP"; fi; fi
-printf '\n[OK] Instalación híbrida terminada.\nMinecraft: %s:%s\nIP pública: %s\nDNS: %s\nWeb: http://%s:%s\n\nMotores: lobby=bds survival=bds pvp=pnx bedwars=pnx skywars=pnx\nPvP, BedWars y SkyWars quedan disponibles automáticamente con los motores Nexora nativos.\nUsa: sudo mcserver minigames status\nUsa: sudo mcserver network verify\n' "$HOST" "$LOBBY_PORT" "$PUBLIC_IP" "$DNS_STATE" "$HOST" "$WEB_PORT"
+printf '\n[OK] Instalación híbrida terminada.\nMinecraft: %s:%s\nIP pública: %s\nDNS: %s\nWeb: http://%s:%s\nPanel admin: http://%s:%s/admin.html\n\nMotores: lobby=bds survival=bds pvp=pnx bedwars=pnx skywars=pnx\nPvP, BedWars y SkyWars quedan disponibles automáticamente con los motores Nexora nativos.\nUsa: sudo mcserver minigames status\nUsa: sudo mcserver network verify\n' "$HOST" "$LOBBY_PORT" "$PUBLIC_IP" "$DNS_STATE" "$HOST" "$WEB_PORT" "$HOST" "$WEB_PORT"
