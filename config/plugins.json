@@ -53,8 +53,25 @@
       "api": "2.0.0"
     },
     {
+      "id": "nexora-skywars",
+      "name": "Nexora SkyWars",
+      "instance": "skywars",
+      "engine": "pnx",
+      "source_type": "local-maven",
+      "source": "pnx-plugins/nexora-skywars",
+      "artifact": "target/nexora-skywars-0.1.0.jar",
+      "license": "PROJECT",
+      "ref": "project",
+      "auto_install": true,
+      "conflicts": ["powerskywars"],
+      "description": "Motor SkyWars propio con Solo/Duo/Escuadra, cuatro islas/equipos, loot-crates, centro, puentes, eliminación sin respawn y cleanup automático.",
+      "version": "0.1.0",
+      "minecraft": "26.40",
+      "api": "2.0.0"
+    },
+    {
       "id": "powerskywars",
-      "name": "PowerSkywars",
+      "name": "PowerSkywars (fallback)",
       "instance": "skywars",
       "engine": "pnx",
       "source_type": "git-gradle",
@@ -63,8 +80,9 @@
       "artifact_glob": "build/*.jar",
       "license": "GPL-3.0-only",
       "redistribute": false,
-      "auto_install": true,
-      "description": "SkyWars para PowerNukkitX, compilado desde una referencia fijada y validada por CI.",
+      "auto_install": false,
+      "conflicts": ["nexora-skywars"],
+      "description": "Fallback upstream compatible con PNX. Requiere mapas administrados y no se activa junto con NexoraSkyWars.",
       "source": "https://github.com/VenityNetwork/PowerSkywars.git",
       "minecraft": "26.40",
       "api": "2.0.0"
