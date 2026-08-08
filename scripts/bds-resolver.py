@@ -3,8 +3,8 @@
 
 The resolver tries minecraft.net first. If the redesigned page does not expose a
 machine-readable archive URL, it falls back to Bedrock-OSS/BDS-Versions only as
-version metadata. The returned ZIP URL is always required to use an approved
-official Minecraft host.
+version/integrity metadata. The returned ZIP URL is always required to use an
+approved official Minecraft host.
 """
 from __future__ import annotations
 
@@ -31,6 +31,7 @@ DETAIL_BASE = os.environ.get(
 )
 ALLOWED_HOSTS = {"www.minecraft.net", "minecraft.net", "minecraft.azureedge.net"}
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+\.\d+$")
+SHA1_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 
 
 def load_json_url(url: str, timeout: int = 20) -> dict:
@@ -90,6 +91,8 @@ def discover_official_page(url: str = OFFICIAL_PAGE) -> dict | None:
     return {
         "version": version,
         "url": validate_official_url(download_url),
+        "sha1": None,
+        "size_in_bytes": None,
         "metadata_source": "minecraft.net",
         "archive_source": "www.minecraft.net",
     }
@@ -119,9 +122,19 @@ def resolve(args: argparse.Namespace) -> dict:
         raise ValueError("El metadata de la versión no contiene download_url")
     validate_official_url(download_url)
 
+    sha1 = detail.get("sha1")
+    if sha1 is not None and not SHA1_RE.fullmatch(str(sha1)):
+        raise ValueError("El metadata contiene un SHA-1 inválido")
+    raw_size = detail.get("size_in_bytes")
+    size_in_bytes = int(raw_size) if raw_size is not None else None
+    if size_in_bytes is not None and size_in_bytes <= 0:
+        raise ValueError("El metadata contiene un tamaño inválido")
+
     return {
         "version": version,
         "url": download_url,
+        "sha1": sha1,
+        "size_in_bytes": size_in_bytes,
         "metadata_source": "Bedrock-OSS/BDS-Versions",
         "archive_source": urlparse(download_url).hostname,
     }
@@ -134,7 +147,7 @@ def main() -> int:
     parser.add_argument("--detail-base", default=DETAIL_BASE)
     parser.add_argument("--versions-file")
     parser.add_argument("--detail-file")
-    parser.add_argument("--field", choices=["version", "url"])
+    parser.add_argument("--field", choices=["version", "url", "sha1", "size_in_bytes"])
     args = parser.parse_args()
     try:
         result = resolve(args)
@@ -142,7 +155,8 @@ def main() -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
     if args.field:
-        print(result[args.field])
+        value = result[args.field]
+        print("" if value is None else value)
     else:
         print(json.dumps(result, ensure_ascii=False))
     return 0

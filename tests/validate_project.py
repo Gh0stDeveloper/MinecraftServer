@@ -64,6 +64,7 @@ def validate_required_files():
         "mcserver",
         "scripts/launch-instance.sh",
         "scripts/update-pnx.sh",
+        "scripts/bds-downloader.py",
         "scripts/engine-manager.sh",
         "scripts/plugin-manager.sh",
         "scripts/minigame-manager.sh",
@@ -96,6 +97,8 @@ none="$(instances_by_engine impossible)"
 [[ -z "$none" ]]
 '''
         subprocess.run(["bash","-c",command],check=True,env=envp,cwd=ROOT)
+def validate_bds_downloader():
+    subprocess.run([os.environ.get("PYTHON", "python3"), str(ROOT/"tests"/"test_bds_downloader.py")], check=True, cwd=ROOT)
 def main():
-    validate_instances(); validate_deployment(); validate_engines(); validate_json(); validate_manifests(); validate_plugins(); validate_survival_isolation(); validate_required_files(); validate_empty_service_state(); print("All native-minigame BedrockNetwork checks passed.")
+    validate_instances(); validate_deployment(); validate_engines(); validate_json(); validate_manifests(); validate_plugins(); validate_survival_isolation(); validate_required_files(); validate_empty_service_state(); validate_bds_downloader(); print("All native-minigame BedrockNetwork checks passed.")
 if __name__=="__main__": main()
