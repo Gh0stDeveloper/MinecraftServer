@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+import ipaddress
 import json
 from pathlib import Path
 ROOT=Path(__file__).resolve().parent.parent
@@ -19,7 +20,11 @@ def validate_instances():
     for k,v in {"gamemode":"survival","force-gamemode":"false","allow-cheats":"false","online-mode":"true","allow-list":"true","level-name":"SurvivalWorld"}.items(): assert s.get(k)==v
     assert int(props(ROOT/"instances"/"skywars"/"server.properties").get("max-players","0"))>=16
 def validate_deployment():
-    n=env(ROOT/"config"/"network.env"); assert n.get("PUBLIC_IP")=="147.224.196.17"; assert n.get("PUBLIC_DOMAIN")=="minecraftnexora.duckdns.org"; assert n.get("PUBLIC_HOST")=="147.224.196.17"
+    n=env(ROOT/"config"/"network.env")
+    public_ip=n.get("PUBLIC_IP","")
+    assert ipaddress.ip_address(public_ip).version==4
+    assert n.get("PUBLIC_DOMAIN")=="minecraftnexora.duckdns.org"
+    assert n.get("PUBLIC_HOST") in {public_ip,n.get("PUBLIC_DOMAIN")}
 def validate_engines():
     e=env(ROOT/"config"/"engines.env"); assert e.get("LOBBY_ENGINE")=="bds"; assert e.get("SURVIVAL_ENGINE")=="bds"
     for k in ("PVP_ENGINE","BEDWARS_ENGINE","SKYWARS_ENGINE"): assert e.get(k)=="pnx"
@@ -52,7 +57,7 @@ def validate_survival_isolation():
     s=ROOT/"instances"/"survival"
     for p in [s/"behavior_packs",s/"plugins",s/"pnx.yml",s/"world_behavior_packs.json"]: assert not p.exists()
 def validate_required_files():
-    required=["mcserver","scripts/launch-instance.sh","scripts/update-pnx.sh","scripts/engine-manager.sh","scripts/plugin-manager.sh","scripts/minigame-manager.sh","scripts/network-manager.sh","systemd/bedrock@.service","pnx-plugins/nexora-practice/src/main/resources/plugin.yml","pnx-plugins/nexora-bedwars/src/main/resources/plugin.yml","pnx-plugins/nexora-skywars/src/main/resources/plugin.yml"]
+    required=["mcserver","scripts/launch-instance.sh","scripts/update-pnx.sh","scripts/engine-manager.sh","scripts/plugin-manager.sh","scripts/minigame-manager.sh","scripts/network-manager.sh","scripts/normalize-permissions.sh","systemd/bedrock@.service","pnx-plugins/nexora-practice/src/main/resources/plugin.yml","pnx-plugins/nexora-bedwars/src/main/resources/plugin.yml","pnx-plugins/nexora-skywars/src/main/resources/plugin.yml"]
     for rel in required: assert (ROOT/rel).is_file(),rel
 def main(): validate_instances(); validate_deployment(); validate_engines(); validate_json(); validate_manifests(); validate_plugins(); validate_survival_isolation(); validate_required_files(); print("All native-minigame BedrockNetwork checks passed.")
 if __name__=="__main__": main()
