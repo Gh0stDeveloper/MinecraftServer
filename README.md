@@ -1,59 +1,121 @@
-# Nexora · Minecraft Bedrock Network
+<div align="center">
 
-Servidor/red híbrida para Minecraft Bedrock con **Lobby**, **Survival vanilla**, **PvP**, **BedWars**, **SkyWars**, panel web y administración desde una sola CLI.
+# ⛏️ Nexora · Minecraft Bedrock Network
 
-El proyecto está preparado para una VPS Ubuntu AMD64/x86_64 y no incluye una IP o dominio del autor: cada instalación configura sus propios datos durante el asistente inicial.
+### Una red Bedrock self-hosted, modular y lista para VPS Ubuntu
 
-## Arquitectura
+**Lobby + Survival vanilla + PvP + BedWars + SkyWars + panel web + CLI administrativa**
+
+[![CI](https://github.com/Gh0stDeveloper/MinecraftServer/actions/workflows/ci.yml/badge.svg)](https://github.com/Gh0stDeveloper/MinecraftServer/actions/workflows/ci.yml)
+![Minecraft Bedrock](https://img.shields.io/badge/Minecraft-Bedrock-62B47A?style=for-the-badge)
+![Bash](https://img.shields.io/badge/Bash-5%2B-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white)
+![Ubuntu](https://img.shields.io/badge/Ubuntu-22.04%20%7C%2024.04-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
+![Java](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
+![PowerNukkitX](https://img.shields.io/badge/PowerNukkitX-3.0.2-7B61FF?style=for-the-badge)
+
+[![Stars](https://img.shields.io/github/stars/Gh0stDeveloper/MinecraftServer?style=social)](https://github.com/Gh0stDeveloper/MinecraftServer/stargazers)
+[![Forks](https://img.shields.io/github/forks/Gh0stDeveloper/MinecraftServer?style=social)](https://github.com/Gh0stDeveloper/MinecraftServer/forks)
+
+[📚 Documentación](docs/README.md) · [🌐 Panel web](docs/WEB_ADMIN.md) · [☁️ Oracle Cloud](docs/ORACLE_RECOVERY.md) · [⚙️ PowerNukkitX](docs/PNX_RUNTIME.md)
+
+</div>
+
+---
+
+## ✨ ¿Qué es este proyecto?
+
+**Nexora Bedrock Network** automatiza la creación y administración de una red de servidores Minecraft Bedrock sobre una sola VPS Ubuntu.
+
+No viene ligado a una IP, dominio o VPS concreta: el instalador detecta la red del usuario, solicita su dominio y genera la configuración persistente durante la primera instalación.
+
+> [!IMPORTANT]
+> **Survival se mantiene en Bedrock Dedicated Server oficial**, sin plugins PowerNukkitX y con cheats desactivados. PvP, BedWars y SkyWars usan PowerNukkitX de manera independiente.
+
+### Incluye
+
+- 🏠 **Lobby** en BDS oficial con selector de servidores.
+- 🌲 **Survival vanilla** protegido para conservar la experiencia y los logros.
+- ⚔️ **PvP** con NexoraPractice.
+- 🛏️ **BedWars** con NexoraBedWars.
+- ☁️ **SkyWars** con NexoraSkyWars.
+- 🌐 **Panel web administrativo** para importar Survival.
+- 🔐 **Token administrativo almacenado como SHA-256**.
+- 🧱 **Firewall local administrado** para UFW o iptables/nftables.
+- ♻️ **Actualización, backups y rollback** de runtimes.
+- 🩺 **Doctor, validación de red y health checks** desde `mcserver`.
+- 🎨 **Instalador y bootstrap visuales** con salida compacta y logs técnicos separados.
+
+---
+
+## 🏗️ Arquitectura
 
 ```text
-Jugador Bedrock
-      |
-      | UDP 19132
-      v
-+-------------+
-|    LOBBY    | BDS oficial + addon del hub
-+------+------+ 
-       |
-       +--> Survival :19133  BDS oficial, sin plugins, cheats=false
-       +--> PvP      :19134  PowerNukkitX + NexoraPractice
-       +--> BedWars  :19135  PowerNukkitX + NexoraBedWars
-       +--> SkyWars  :19136  PowerNukkitX + NexoraSkyWars
+                               ┌────────────────────┐
+Jugador Bedrock ── UDP/19132 ─►│       LOBBY        │
+                               │   BDS + Lobby BP   │
+                               └─────────┬──────────┘
+                                         │
+                  ┌──────────────────────┼──────────────────────┐
+                  │                      │                      │
+                  ▼                      ▼                      ▼
+        UDP/19133 Survival     UDP/19134 PvP          UDP/19135 BedWars
+        BDS oficial            PowerNukkitX           PowerNukkitX
+        vanilla                NexoraPractice         NexoraBedWars
+                                                            │
+                                                            ▼
+                                                  UDP/19136 SkyWars
+                                                  PowerNukkitX
+                                                  NexoraSkyWars
+
+Internet ── TCP/80,443 ──► Nginx ──► backend web local TCP/8080
 ```
 
-Lobby y Survival permanecen en Bedrock Dedicated Server oficial. Los minijuegos usan PowerNukkitX y plugins Nexora administrados por el proyecto.
+| Instancia | Motor | Puerto | Estado esperado tras bootstrap |
+|---|---|---:|---|
+| 🏠 Lobby | BDS | `19132/UDP` | Online |
+| 🌲 Survival | BDS | `19133/UDP` | Detenido hasta importar mundo |
+| ⚔️ PvP | PowerNukkitX | `19134/UDP` | Online |
+| 🛏️ BedWars | PowerNukkitX | `19135/UDP` | Online |
+| ☁️ SkyWars | PowerNukkitX | `19136/UDP` | Online |
+| 🌐 Web | Python + Nginx | `8080/TCP` interno | Online |
 
-## Requisitos
+---
 
-- Ubuntu 22.04 o 24.04.
-- CPU AMD64/x86_64.
-- Acceso `sudo`/root.
-- Java 21 para PowerNukkitX.
-- Puertos externos:
+## 📋 Requisitos
 
-```text
-TCP 80,443
-UDP 19132-19136
-```
+| Requisito | Valor |
+|---|---|
+| Sistema | Ubuntu 22.04 / 24.04 |
+| Arquitectura | AMD64 / x86_64 |
+| Acceso | `sudo` o root |
+| Java | 21+ |
+| Minecraft | Bedrock Edition |
+| Web público | TCP `80`, `443` |
+| Bedrock | UDP `19132-19136` |
 
-TCP/8080 es interno para el backend web y no necesita publicarse si se utiliza Nginx.
+> [!NOTE]
+> El backend web escucha en `8080/TCP` localmente. No es necesario exponer ese puerto a Internet cuando se utiliza Nginx.
 
-## Instalación rápida
+---
+
+## 🚀 Instalación rápida
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Gh0stDeveloper/MinecraftServer/main/install.sh | sudo bash
 ```
 
-La primera instalación abre un asistente en terminal que:
+El asistente realiza automáticamente:
 
-1. comprueba arquitectura y dependencias;
-2. detecta la IPv4 pública de la VPS;
-3. pide el dominio público;
-4. comprueba si el DNS ya apunta a la VPS;
-5. instala BDS y PowerNukkitX;
-6. prepara Lobby, PvP, BedWars y SkyWars;
-7. configura firewall local y panel web;
-8. mantiene Survival detenido hasta importar el mundo real.
+1. 🔍 comprobación de arquitectura y dependencias;
+2. 🌍 detección de la IPv4 pública;
+3. 🔗 solicitud y validación del dominio;
+4. 📦 instalación de BDS;
+5. ⚙️ instalación o compilación reproducible de PowerNukkitX;
+6. 🎮 preparación de Lobby, PvP, BedWars y SkyWars;
+7. 🧩 instalación de addons y plugins Nexora;
+8. 🧱 configuración del firewall local;
+9. 🌐 preparación del panel web;
+10. 🛡️ bloqueo de Survival hasta importar el mundo real.
 
 ### Instalación no interactiva
 
@@ -63,86 +125,78 @@ curl -fsSL https://raw.githubusercontent.com/Gh0stDeveloper/MinecraftServer/main
   --domain miservidor.duckdns.org
 ```
 
-## Dominio gratis con DuckDNS
+---
 
-Si no tienes dominio, puedes crear un subdominio gratuito en:
+## 🦆 Dominio gratuito con DuckDNS
 
-```text
-https://www.duckdns.org/
-```
-
-Ejemplo:
+Si no tienes dominio, el instalador recomienda **DuckDNS** por ser sencillo para una VPS personal.
 
 ```text
-miservidor.duckdns.org -> IP_PUBLICA_DE_TU_VPS
+miservidor.duckdns.org  →  IPv4 pública de tu VPS
 ```
 
-El instalador pide el dominio. Si todavía no resuelve a la IP correcta, guarda el dominio pero utiliza temporalmente la IPv4 para no bloquear la instalación.
+Crea el subdominio en:
 
-Cuando el DNS ya sea correcto:
+**https://www.duckdns.org/**
+
+Si el DNS todavía no apunta a la VPS, Nexora guarda el dominio y utiliza temporalmente la IP pública.
+
+Cuando el DNS sea correcto:
 
 ```bash
 sudo mcserver network use-domain
-```
-
-Después puedes activar Nginx/HTTPS:
-
-```bash
 sudo mcserver web domain TU_DOMINIO
 sudo mcserver web https TU_DOMINIO TU_CORREO
 ```
 
-## Interfaz de terminal
+---
 
-El instalador y el bootstrap usan una salida compacta con secciones y estados:
+## 🎨 Interfaz de terminal
 
 ```text
 ╭────────────────────────────────────────────────────────╮
 │  NEXORA · BEDROCK NETWORK                              │
-│  Instalación guiada · BDS + PowerNukkitX               │
+│  Recuperación y bootstrap del servidor                 │
 ╰────────────────────────────────────────────────────────╯
 
+━━ Base del sistema
+[✓] Verificando dependencias
+[✓] Normalizando permisos
+[✓] Aplicando firewall local
+
 ━━ Runtimes
-[✓] Bedrock Dedicated Server actualizado
-[✓] PowerNukkitX 3.0.2 compatible con Bedrock 26.40
-[◆] Buscando snapshot oficial de PowerNukkitX
-[!] Snapshot oficial no disponible; compilando desde el commit fijado.
-[✓] Descargando/preparando Gradle
-[✓] Compilando release de PowerNukkitX 3.0.2
+[✓] BDS actualizado
+[✓] PowerNukkitX compatible
+[◆] Buscando snapshot oficial
+[!] Snapshot no disponible; usando fallback reproducible
 ```
 
-Los comandos ruidosos (`apt`, `curl`, Gradle, etc.) se compactan y sus detalles se guardan en:
+Los detalles extensos de `apt`, `curl`, Gradle y otras tareas se guardan en:
 
 ```text
 /var/log/mcserver/tasks.log
 ```
 
-Para mostrar la salida técnica completa:
+Modo detallado:
 
 ```bash
 sudo MCSERVER_VERBOSE=1 mcserver bootstrap
 ```
 
-Para desactivar colores ANSI:
+Sin colores ANSI:
 
 ```bash
 sudo NO_COLOR=1 mcserver bootstrap
 ```
 
-## PowerNukkitX resiliente
+---
 
-El updater intenta primero el snapshot oficial publicado por PowerNukkitX. Si ese asset no existe o upstream devuelve 404, compila automáticamente un `shadowJar` desde un commit oficial fijado y validado para la versión Bedrock soportada.
-
-Esto evita que una instalación nueva quede bloqueada porque desaparezca un asset `snapshot`.
-
-## Recuperar una instalación incompleta
+## ♻️ Recuperar una instalación incompleta
 
 ```bash
 sudo mcserver update project
 sudo mcserver bootstrap
 ```
-
-`bootstrap` es idempotente: completa runtimes, plugins, minijuegos, web, firewall y servicios sin reemplazar el mundo Survival.
 
 Después:
 
@@ -154,9 +208,11 @@ sudo mcserver network verify
 sudo mcserver doctor
 ```
 
-## Survival y protección de logros
+`bootstrap` está diseñado para ser **idempotente**: reutiliza runtimes válidos, completa piezas faltantes y no reemplaza el mundo Survival.
 
-Survival conserva:
+---
+
+## 🌲 Survival y protección de logros
 
 ```ini
 gamemode=survival
@@ -166,83 +222,41 @@ online-mode=true
 allow-list=true
 ```
 
-Además:
+Nexora además garantiza que Survival:
 
-- permanece en BDS;
+- usa siempre BDS oficial;
 - no recibe plugins PowerNukkitX;
 - no recibe Behavior Packs de minijuegos;
-- `level.dat` se importa sin modificar;
-- en una instalación nueva permanece detenido hasta importar el mundo real.
+- conserva `level.dat` durante la importación;
+- permanece apagado hasta que exista un mundo real importado.
 
-### Importar por CLI
-
-Acepta carpeta, `.zip` o `.mcworld`:
+### Importar desde terminal
 
 ```bash
 sudo mcserver import-survival /ruta/MiMundo.zip
 ```
 
-El importador valida `level.dat`, `db/`, rutas ZIP, crea backup y evita archivos ambiguos o inseguros.
+Admite carpeta, `.zip` y `.mcworld`.
 
-### Importar desde el panel web
-
-Genera el token:
+### Importar desde el panel
 
 ```bash
 sudo mcserver web admin-token
 ```
 
-Con HTTPS activo abre:
+Después, con HTTPS activo:
 
 ```text
 https://TU_DOMINIO/admin.html
 ```
 
-Desde ahí puedes subir `.zip` o `.mcworld`. El panel guarda solo el hash SHA-256 del token, la subida se procesa mediante un worker root separado y el archivo temporal se elimina al finalizar.
+Consulta [docs/WEB_ADMIN.md](docs/WEB_ADMIN.md).
 
-Consulta [`docs/WEB_ADMIN.md`](docs/WEB_ADMIN.md) para el flujo completo.
+---
 
-## Firewall
+## 🎮 Minijuegos
 
-```bash
-sudo mcserver firewall apply
-sudo mcserver firewall status
-```
-
-En imágenes donde UFW está inactivo, `mcserver` crea una cadena `BEDROCK-NETWORK` antes de reglas `REJECT` existentes y permite:
-
-```text
-TCP 80,443
-UDP 19132,19133,19134,19135,19136
-```
-
-Las reglas se persisten con `netfilter-persistent`. **TCP/22 no se modifica**, por lo que SSH queda fuera de la administración automática del proyecto.
-
-Recuerda que proveedores cloud como Oracle también requieren reglas equivalentes en su Security List/NSG/firewall externo.
-
-## Administración
-
-```bash
-mcserver status
-sudo mcserver doctor
-sudo mcserver backup
-sudo mcserver restart
-sudo mcserver update
-sudo mcserver network verify
-```
-
-Logs por instancia:
-
-```bash
-sudo mcserver logs lobby
-sudo mcserver logs pvp
-sudo mcserver logs bedwars
-sudo mcserver logs skywars
-```
-
-## Minijuegos
-
-### PvP — NexoraPractice
+### ⚔️ PvP · NexoraPractice
 
 ```text
 /pvp solo
@@ -253,9 +267,9 @@ sudo mcserver logs skywars
 /lobby
 ```
 
-Incluye arenas autogeneradas, colas, equipos, kits, friendly-fire bloqueado, espectador, eliminación por vacío y partidas `first-to-3`.
+Arenas autogeneradas, equipos, kits, friendly-fire bloqueado, espectador, vacío y partidas `first-to-3`.
 
-### BedWars — NexoraBedWars
+### 🛏️ BedWars · NexoraBedWars
 
 ```text
 /bw solo
@@ -267,9 +281,9 @@ Incluye arenas autogeneradas, colas, equipos, kits, friendly-fire bloqueado, esp
 /lobby
 ```
 
-Incluye bases, centro, camas-núcleo, respawn condicionado, recursos y tienda. SilentBedwars permanece como fallback manual.
+Bases generadas, camas-núcleo, respawn condicionado, recursos, tienda y limpieza automática.
 
-### SkyWars — NexoraSkyWars
+### ☁️ SkyWars · NexoraSkyWars
 
 ```text
 /sw solo
@@ -280,36 +294,96 @@ Incluye bases, centro, camas-núcleo, respawn condicionado, recursos y tienda. S
 /lobby
 ```
 
-Incluye islas, centro, loot-crates, bloques para puentes, friendly-fire bloqueado, espectador y eliminación definitiva. PowerSkywars permanece como fallback manual.
+Islas, centro, loot crates, puentes, equipos, espectador y eliminación definitiva.
 
-## Actualizaciones y rollback
+---
+
+## 🧰 CLI administrativa
+
+| Acción | Comando |
+|---|---|
+| Estado | `mcserver status` |
+| Diagnóstico | `sudo mcserver doctor` |
+| Reparar/completar | `sudo mcserver bootstrap` |
+| Backup | `sudo mcserver backup` |
+| Reiniciar red | `sudo mcserver restart` |
+| Verificar red | `sudo mcserver network verify` |
+| Estado firewall | `sudo mcserver firewall status` |
+| Actualizar proyecto | `sudo mcserver update project` |
+| Actualizar BDS | `sudo mcserver update bds` |
+| Actualizar PNX | `sudo mcserver update pnx` |
+| Actualizar plugins | `sudo mcserver update plugins` |
+
+Logs:
 
 ```bash
-sudo mcserver update
-sudo mcserver update project
-sudo mcserver update bds
-sudo mcserver update pnx
-sudo mcserver update plugins
+sudo mcserver logs lobby
+sudo mcserver logs pvp
+sudo mcserver logs bedwars
+sudo mcserver logs skywars
 ```
 
-Rollback:
+---
 
-```bash
-sudo mcserver rollback bds VERSION
-sudo mcserver rollback pnx RELEASE
+## 🧱 Firewall y nube
+
+El proyecto administra localmente:
+
+```text
+TCP 80,443
+UDP 19132-19136
 ```
 
-## GitHub Actions
+Cuando UFW está desactivado, crea una cadena `BEDROCK-NETWORK` en iptables/nftables antes de reglas `REJECT` existentes y persiste las reglas con `netfilter-persistent`.
 
-CI valida, entre otras cosas:
+> [!WARNING]
+> Nexora **no modifica TCP/22**, por lo que la administración del acceso SSH permanece separada. Además, Oracle Cloud/AWS/Azure/etc. requieren abrir los mismos puertos en su firewall o Security List/NSG externo.
 
-- que el template público no contenga IP/dominio del autor;
-- aislamiento y protección de Survival;
+---
+
+## ⚙️ PowerNukkitX resiliente
+
+El updater intenta primero el snapshot oficial. Si upstream devuelve 404 o retira el asset, Nexora construye el `shadowJar` desde un commit oficial fijado y validado.
+
+La release se valida antes de activarse y, si ya existe una build correcta del mismo commit, se reutiliza sin recompilar Gradle.
+
+Más detalles: [docs/PNX_RUNTIME.md](docs/PNX_RUNTIME.md).
+
+---
+
+## ✅ GitHub Actions
+
+CI comprueba entre otras cosas:
+
 - Bash, Python y JavaScript;
-- preparación PNX en una instalación fresca con `set -u`;
-- los tres plugins Nexora;
-- pin oficial de PowerNukkitX;
-- fallbacks SilentBedwars/PowerSkywars;
-- importación `.zip`/`.mcworld` y rechazo de ZIPs inseguros;
-- recuperación de permisos;
-- panel web y paquete desplegable.
+- plugins Nexora;
+- fallbacks externos fijados;
+- runtime PowerNukkitX;
+- aislamiento de Survival;
+- importación segura `.zip` / `.mcworld`;
+- permisos y recuperación de runtime;
+- detección real de sockets UDP/TCP;
+- permisos de Script API del addon del Lobby;
+- panel web y paquete desplegable;
+- que la plantilla pública no contenga IP o dominio del autor.
+
+---
+
+## 📚 Documentación
+
+| Guía | Contenido |
+|---|---|
+| [📚 Índice](docs/README.md) | Centro de documentación |
+| [🌐 Panel web](docs/WEB_ADMIN.md) | Token, HTTPS e importación de Survival |
+| [☁️ Oracle Recovery](docs/ORACLE_RECOVERY.md) | Firewall y recuperación en Oracle Cloud |
+| [⚙️ PNX Runtime](docs/PNX_RUNTIME.md) | Política y fallback de PowerNukkitX |
+
+---
+
+<div align="center">
+
+### ⭐ Si el proyecto te resulta útil, puedes darle una estrella
+
+**Nexora Bedrock Network** · creado para que levantar una red Bedrock propia sea reproducible y administrable.
+
+</div>

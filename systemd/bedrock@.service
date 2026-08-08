@@ -13,7 +13,7 @@ Restart=on-failure
 RestartSec=5
 KillSignal=SIGINT
 TimeoutStopSec=60
-LimitNOFILE=65535
+LimitNOFILE=1048576
 Nice=-2
 
 [Install]

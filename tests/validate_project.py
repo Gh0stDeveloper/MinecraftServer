@@ -30,7 +30,7 @@ def validate_deployment():
     assert n.get("LOBBY_PORT")=="19132" and n.get("WEB_PORT")=="8080"
 def validate_public_docs():
     forbidden=("minecraftnexora.duckdns.org","163.192.204.78")
-    paths=[ROOT/"README.md",ROOT/"docs"/"WEB_ADMIN.md",ROOT/"config"/"network.env"]
+    paths=[ROOT/"README.md",ROOT/"docs"/"README.md",ROOT/"docs"/"WEB_ADMIN.md",ROOT/"docs"/"ORACLE_RECOVERY.md",ROOT/"docs"/"PNX_RUNTIME.md",ROOT/"config"/"network.env"]
     for path in paths:
         text=path.read_text(encoding="utf-8")
         for value in forbidden: assert value not in text,(path,value)
@@ -71,11 +71,11 @@ def validate_survival_isolation():
     for p in [s/"behavior_packs",s/"plugins",s/"pnx.yml",s/"world_behavior_packs.json"]: assert not p.exists()
 def validate_required_files():
     required=[
-        "mcserver","scripts/ui.sh","scripts/launch-instance.sh","scripts/update-pnx.sh","scripts/pnx-jar-validator.py","scripts/bds-downloader.py",
-        "scripts/engine-manager.sh","scripts/plugin-manager.sh","scripts/minigame-manager.sh","scripts/network-manager.sh",
+        "mcserver","scripts/ui.sh","scripts/socket-check.sh","scripts/launch-instance.sh","scripts/update-pnx.sh","scripts/pnx-jar-validator.py","scripts/bds-downloader.py",
+        "scripts/engine-manager.sh","scripts/plugin-manager.sh","scripts/minigame-manager.sh","scripts/network-manager.sh","scripts/install-addon.sh",
         "scripts/normalize-permissions.sh","scripts/bootstrap-runtime.sh","scripts/firewall-manager.sh","tests/test_pnx_source_pin.py","tests/test_pnx_jar_validator.py",
-        "systemd/bedrock@.service","pnx-plugins/nexora-practice/src/main/resources/plugin.yml",
-        "pnx-plugins/nexora-bedwars/src/main/resources/plugin.yml","pnx-plugins/nexora-skywars/src/main/resources/plugin.yml",
+        "tests/test_socket_check.sh","tests/test_lobby_addon_permissions.sh","docs/README.md","systemd/bedrock@.service",
+        "pnx-plugins/nexora-practice/src/main/resources/plugin.yml","pnx-plugins/nexora-bedwars/src/main/resources/plugin.yml","pnx-plugins/nexora-skywars/src/main/resources/plugin.yml",
     ]
     for rel in required: assert (ROOT/rel).is_file(),rel
 def validate_empty_service_state():
@@ -99,6 +99,9 @@ stop_engine impossible
 def validate_bds_downloader(): subprocess.run([os.environ.get("PYTHON","python3"),str(ROOT/"tests"/"test_bds_downloader.py")],check=True,cwd=ROOT)
 def validate_pnx_source_pin(): subprocess.run([os.environ.get("PYTHON","python3"),str(ROOT/"tests"/"test_pnx_source_pin.py")],check=True,cwd=ROOT)
 def validate_pnx_jar_validator(): subprocess.run([os.environ.get("PYTHON","python3"),str(ROOT/"tests"/"test_pnx_jar_validator.py")],check=True,cwd=ROOT)
+def validate_runtime_regressions():
+    subprocess.run(["bash",str(ROOT/"tests"/"test_socket_check.sh")],check=True,cwd=ROOT)
+    subprocess.run(["sudo","bash",str(ROOT/"tests"/"test_lobby_addon_permissions.sh")],check=True,cwd=ROOT)
 def main():
-    validate_instances(); validate_deployment(); validate_public_docs(); validate_engines(); validate_json(); validate_manifests(); validate_plugins(); validate_survival_isolation(); validate_required_files(); validate_empty_service_state(); validate_bds_downloader(); validate_pnx_source_pin(); validate_pnx_jar_validator(); print("All native-minigame BedrockNetwork checks passed.")
+    validate_instances(); validate_deployment(); validate_public_docs(); validate_engines(); validate_json(); validate_manifests(); validate_plugins(); validate_survival_isolation(); validate_required_files(); validate_empty_service_state(); validate_bds_downloader(); validate_pnx_source_pin(); validate_pnx_jar_validator(); validate_runtime_regressions(); print("All native-minigame BedrockNetwork checks passed.")
 if __name__=="__main__": main()
