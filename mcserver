@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="${BEDROCK_ROOT:-/opt/bedrock-network}"
+APP_DIR="$ROOT/app"
+if [[ -d "$APP_DIR/scripts" && "$SELF_DIR" == "$APP_DIR" ]]; then BASE="$APP_DIR"; else BASE="$SELF_DIR"; fi
+RUNTIME_BASE="$APP_DIR"; [[ -d "$RUNTIME_BASE/scripts" ]] || RUNTIME_BASE="$BASE"
+INSTANCES=(lobby survival pvp bedwars skywars)
+require_root(){ [[ ${EUID:-$(id -u)} -eq 0 ]] || { echo '[ERROR] Ejecuta con sudo/root.' >&2; exit 1; }; }
+
+help_cmd(){ cat <<'HELP'
+Minecraft Bedrock Network Manager
+
+Uso: mcserver <comando>
+
+  install [--host HOST] [--domain DOMINIO]   Primera instalación completa
+  status                                     Estado de las cinco instancias y web
+  update [all|project|bds]                   Actualizar todo, proyecto o BDS
+  rollback <version>                         Volver a un runtime BDS descargado
+  auto-update enable|disable|status          Auto-update BDS diario (opcional)
+  start | stop | restart                     Control de la red
+  backup                                     Backup consistente
+  import-survival /ruta/Mundo                Importar Survival sin editar level.dat
+  doctor                                     Diagnóstico
+  logs [instancia]                           Logs en vivo
+  web status|restart                         Control de web
+  web domain DOMINIO                         Configurar Nginx
+  web https DOMINIO EMAIL                    Configurar HTTPS
+
+Mantenimiento normal:
+  sudo mcserver update
+HELP
+}
+
+network_action(){
+  require_root; action="$1"
+  for i in "${INSTANCES[@]}"; do systemctl "$action" "bedrock@$i.service"; done
+}
+
+cmd="${1:-help}"; shift || true
+case "$cmd" in
+  install) require_root; exec "$BASE/scripts/first-install.sh" "$@";;
+  status) exec "$RUNTIME_BASE/scripts/status.sh";;
+  update)
+    require_root
+    mode="${1:-all}"; [[ $# -gt 0 ]] && shift || true
+    case "$mode" in
+      all)
+        "$APP_DIR/scripts/update-project.sh"
+        exec "$APP_DIR/scripts/update-bds.sh" latest;;
+      project) exec "$APP_DIR/scripts/update-project.sh";;
+      bds) exec "$APP_DIR/scripts/update-bds.sh" "$@";;
+      *) echo '[ERROR] Uso: mcserver update [all|project|bds]' >&2; exit 1;;
+    esac;;
+  rollback) require_root; [[ -n "${1:-}" ]] || { find "$ROOT/bds/releases" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort -V; exit 1; }; exec "$APP_DIR/scripts/update-bds.sh" --rollback "$1";;
+  auto-update)
+    require_root
+    case "${1:-status}" in
+      enable) systemctl enable --now bedrock-auto-update.timer; echo '[OK] Auto-update BDS activado.';;
+      disable) systemctl disable --now bedrock-auto-update.timer; echo '[OK] Auto-update BDS desactivado.';;
+      status) systemctl status bedrock-auto-update.timer --no-pager || true;;
+      *) echo '[ERROR] Uso: mcserver auto-update enable|disable|status' >&2; exit 1;;
+    esac;;
+  start) network_action start;;
+  stop) network_action stop;;
+  restart) network_action restart;;
+  backup) require_root; exec "$APP_DIR/scripts/network-backup.sh";;
+  import-survival) require_root; [[ $# -eq 1 ]] || { echo '[ERROR] Uso: mcserver import-survival /ruta/Mundo' >&2; exit 1; }; "$APP_DIR/scripts/import-survival.sh" "$1"; "$APP_DIR/scripts/check-survival-safety.sh" "$ROOT/instances/survival/server.properties"; systemctl start bedrock@survival.service;;
+  doctor) exec "$RUNTIME_BASE/scripts/doctor.sh";;
+  logs) i="${1:-lobby}"; [[ " ${INSTANCES[*]} " == *" $i "* ]] || { echo '[ERROR] Instancia inválida.' >&2; exit 1; }; exec journalctl -u "bedrock@$i.service" -n 150 -f;;
+  web) exec "$RUNTIME_BASE/scripts/web-setup.sh" "$@";;
+  help|-h|--help) help_cmd;;
+  *) help_cmd; echo "[ERROR] Comando desconocido: $cmd" >&2; exit 1;;
+esac
