@@ -30,7 +30,7 @@ if [[ -n "$rollback" ]]; then
   ok "PNX cambiado a $rollback. Backup: $backup"
   exit 0
 fi
-meta="$(curl -fsSL --retry 3 --connect-timeout 15 https://raw.githubusercontent.com/PowerNukkitX/PowerNukkitX/master/README.md || true)"
+meta="$(curl --http1.1 -fsSL --retry 5 --retry-all-errors --connect-timeout 15 https://raw.githubusercontent.com/PowerNukkitX/PowerNukkitX/master/README.md || true)"
 version="$(printf '%s' "$meta" | sed -n 's/.*badge\/version-\([0-9][0-9.]*\)-blue.*/\1/p' | head -n1)"
 mc_version="$(printf '%s' "$meta" | sed -n 's/.*minecraft-v\([^% ]*\)%20(Bedrock).*/\1/p' | head -n1)"
 version="${version:-snapshot}"
@@ -45,7 +45,7 @@ PY
 tmp="$(mktemp "$CACHE_DIR/pnx.XXXXXX.jar")"
 trap 'rm -f "$tmp"' EXIT
 log "Descargando PowerNukkitX desde el release snapshot oficial..."
-curl -fL --retry 3 --connect-timeout 20 "$PNX_DOWNLOAD_URL" -o "$tmp"
+curl --http1.1 -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 "$PNX_DOWNLOAD_URL" -o "$tmp"
 [[ -s "$tmp" ]] || die "Descarga PNX vacía."
 sha="$(sha256sum "$tmp" | awk '{print $1}')"
 old_sha="$(cat "$STATE_DIR/pnx-sha256" 2>/dev/null || true)"
