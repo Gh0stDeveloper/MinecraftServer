@@ -20,20 +20,20 @@ Uso: mcserver <comando>
   engine set <minijuego> <bds|pnx>           Cambiar motor con backup y rollback
   plugins list|sync|doctor                   Gestionar catálogo de plugins PNX
   plugins install <id>                       Compilar/instalar un plugin fijado
-  minigames status|prepare|verify             Estado y validación de minijuegos
-  minigames import-bedwars /ruta/Mundo       Importar mapa BedWars
-  minigames import-skywars ...               Importar mapa SkyWars + coordenadas
+  minigames status|prepare|verify            Estado y validación de minijuegos
+  minigames import-bedwars /ruta/Mundo       Importar mapa BedWars legacy
+  minigames import-skywars ...               Importar mapa SkyWars legacy + coordenadas
   network status|verify                      Comprobar IP, DNS y puertos
   network use-domain|use-ip                  Cambiar host público de transferencias
   auto-update enable|disable|status          Actualización diaria (opcional)
   start | stop | restart                     Control de toda la red
   backup                                     Backup consistente
-  import-survival /ruta/Mundo                Importar Survival sin editar level.dat
+  import-survival RUTA                       Importar carpeta, .zip o .mcworld sin editar level.dat
   doctor                                     Diagnóstico completo
   logs [instancia]                           Logs en vivo
   web status|restart                         Control de web
-  web domain DOMINIO                         Configurar Nginx
-  web https DOMINIO EMAIL                    Configurar HTTPS
+  web domain [DOMINIO]                       Configurar Nginx (usa PUBLIC_DOMAIN si se omite)
+  web https DOMINIO EMAIL                    Configurar HTTPS con validación DNS
 
 Mantenimiento normal:
   sudo mcserver update
@@ -80,7 +80,7 @@ case "$cmd" in
     esac;;
   start) network_action start;; stop) network_action stop;; restart) network_action restart;;
   backup) require_root; exec "$APP_DIR/scripts/network-backup.sh";;
-  import-survival) require_root; [[ $# -eq 1 ]] || { echo '[ERROR] Uso: mcserver import-survival /ruta/Mundo' >&2; exit 1; }; "$APP_DIR/scripts/import-survival.sh" "$1"; "$APP_DIR/scripts/check-survival-safety.sh" "$ROOT/instances/survival/server.properties"; systemctl start bedrock@survival.service;;
+  import-survival) require_root; [[ $# -eq 1 ]] || { echo '[ERROR] Uso: mcserver import-survival /ruta/Mundo|Mundo.zip|Mundo.mcworld' >&2; exit 1; }; "$APP_DIR/scripts/import-survival.sh" "$1"; "$APP_DIR/scripts/check-survival-safety.sh" "$ROOT/instances/survival/server.properties"; systemctl start bedrock@survival.service;;
   doctor) exec "$RUNTIME_BASE/scripts/doctor.sh";;
   logs) i="${1:-lobby}"; [[ " ${INSTANCES[*]} " == *" $i "* ]] || { echo '[ERROR] Instancia inválida.' >&2; exit 1; }; exec journalctl -u "bedrock@$i.service" -n 150 -f;;
   web) exec "$RUNTIME_BASE/scripts/web-setup.sh" "$@";;

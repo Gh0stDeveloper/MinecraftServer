@@ -44,14 +44,39 @@ status(){
   fi
 }
 
+service_state(){ systemctl is-active "bedrock@$1.service" 2>/dev/null || printf 'inactive'; }
 verify(){
-  local fail=0
+  local fail=0 instance port state
   status
   if domain_ok; then ok "DNS correcto: $PUBLIC_DOMAIN -> $PUBLIC_IP"; else warn "DNS no resuelve exactamente a $PUBLIC_IP."; fail=$((fail+1)); fi
-  for port in "$LOBBY_PORT" "$SURVIVAL_PORT" "$PVP_PORT" "$BEDWARS_PORT" "$SKYWARS_PORT"; do
-    if ss -H -lun 2>/dev/null | awk '{print $5}' | grep -Eq "(:|\])${port}$"; then ok "UDP/$port escuchando"; else warn "UDP/$port no está escuchando localmente."; fail=$((fail+1)); fi
-  done
-  if ss -H -ltn 2>/dev/null | awk '{print $4}' | grep -Eq "(:|\])${WEB_PORT}$"; then ok "TCP/$WEB_PORT web escuchando"; else warn "TCP/$WEB_PORT web no está escuchando."; fail=$((fail+1)); fi
+
+  while IFS=':' read -r instance port; do
+    if [[ "$instance" == survival && -f "$STATE_DIR/survival-pending-import" ]]; then
+      log "UDP/$port Survival pendiente de importación; es normal que aún no escuche."
+      continue
+    fi
+    if ss -H -lun 2>/dev/null | awk '{print $5}' | grep -Eq "(:|\])${port}$"; then
+      ok "UDP/$port escuchando ($instance)"
+    else
+      state="$(service_state "$instance")"
+      warn "UDP/$port no está escuchando ($instance; servicio=$state). Revisa: sudo mcserver logs $instance"
+      fail=$((fail+1))
+    fi
+  done <<EOF
+lobby:$LOBBY_PORT
+survival:$SURVIVAL_PORT
+pvp:$PVP_PORT
+bedwars:$BEDWARS_PORT
+skywars:$SKYWARS_PORT
+EOF
+
+  if ss -H -ltn 2>/dev/null | awk '{print $4}' | grep -Eq "(:|\])${WEB_PORT}$"; then
+    ok "TCP/$WEB_PORT web escuchando"
+  else
+    state="$(systemctl is-active bedrock-web.service 2>/dev/null || printf 'inactive')"
+    warn "TCP/$WEB_PORT web no está escuchando (bedrock-web=$state). Revisa: sudo mcserver web status"
+    fail=$((fail+1))
+  fi
   ((fail == 0)) || die "Verificación de red encontró $fail problema(s)."
 }
 

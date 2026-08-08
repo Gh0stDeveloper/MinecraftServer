@@ -1,21 +1,22 @@
 # Minecraft Bedrock Network
 
-Red híbrida para Minecraft Bedrock **26.40**: Lobby, Survival persistente, PvP, BedWars y SkyWars administrados desde una sola CLI.
+Red híbrida para Minecraft Bedrock **26.40** con Lobby, Survival persistente, PvP, BedWars y SkyWars administrados desde una sola CLI.
 
-## Despliegue principal
+## Despliegue
 
 ```text
 IP pública : 147.224.196.17
-Dominio    : minecraftserver.duckdns.org
+Dominio    : minecraftnexora.duckdns.org
 Lobby      : UDP 19132
 Survival   : UDP 19133
 PvP        : UDP 19134
 BedWars    : UDP 19135
 SkyWars    : UDP 19136
 Web        : TCP 8080
+HTTP/HTTPS : TCP 80/443
 ```
 
-`147.224.196.17` es el fallback seguro. El proyecto solo activa `minecraftserver.duckdns.org` para transferencias cuando el DNS resuelve exactamente a esa IP.
+`147.224.196.17` queda disponible como fallback. `mcserver network use-domain` solo activa `minecraftnexora.duckdns.org` si resuelve exactamente a esa IP.
 
 ## Arquitectura
 
@@ -25,7 +26,7 @@ Jugador Bedrock
       | UDP 19132
       v
 +-------------+
-|    LOBBY    |  BDS oficial + addon del hub
+|    LOBBY    | BDS oficial + addon del hub
 +------+------+ 
        |
        +--> Survival :19133  BDS oficial, sin plugins, cheats=false
@@ -34,23 +35,7 @@ Jugador Bedrock
        +--> SkyWars  :19136  PowerNukkitX + NexoraSkyWars 0.1
 ```
 
-Lobby y Survival están bloqueados a BDS. Los tres minijuegos usan motores Nexora propios sobre PowerNukkitX y generan sus arenas automáticamente.
-
-## Survival y logros
-
-```ini
-gamemode=survival
-force-gamemode=false
-allow-cheats=false
-online-mode=true
-allow-list=true
-```
-
-- `SURVIVAL_ENGINE=bds` no puede cambiarse con `mcserver engine`;
-- Survival no recibe plugins PNX ni Behavior Packs de minijuegos;
-- `import-survival` copia `level.dat` sin modificarlo;
-- una instalación nueva bloquea la creación de un Survival vacío hasta importar el mundo real;
-- actualizaciones y cambios de motor crean backups.
+Lobby y Survival permanecen en BDS. Los minijuegos usan motores Nexora propios sobre PowerNukkitX y generan sus arenas automáticamente.
 
 ## Instalación
 
@@ -60,20 +45,164 @@ Ubuntu 22.04/24.04 AMD64/x86_64:
 curl -fsSL https://raw.githubusercontent.com/Gh0stDeveloper/MinecraftServer/main/install.sh | sudo bash
 ```
 
-Explícito:
+También puede indicarse el despliegue explícitamente:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Gh0stDeveloper/MinecraftServer/main/install.sh | sudo bash -s -- \
   --public-ip 147.224.196.17 \
-  --domain minecraftserver.duckdns.org
+  --domain minecraftnexora.duckdns.org
 ```
 
-Si DuckDNS todavía no apunta a la VPS, el instalador conserva la IP como host público.
-
-Después importa el Survival:
+Después de una actualización de kernel de Ubuntu/Oracle es recomendable reiniciar la VPS antes de continuar:
 
 ```bash
-sudo mcserver import-survival "/ruta/a/TuMundo"
+sudo reboot
+```
+
+### Recuperar/completar una instalación
+
+Si una instalación se interrumpió después de crear los servicios:
+
+```bash
+sudo mcserver update
+sudo mcserver restart
+sudo systemctl restart bedrock-web.service
+sudo mcserver doctor
+sudo mcserver network verify
+```
+
+Mientras el Survival todavía no se haya importado, `network verify` considera normal que UDP/19133 no esté escuchando.
+
+## Importar Survival desde Android
+
+No es necesario copiar el mundo dentro del repositorio.
+
+Puedes subir el archivo a cualquier directorio de la VPS; se recomienda:
+
+```text
+/root/uploads/MiSurvival.zip
+```
+
+o, si accedes con el usuario `ubuntu`:
+
+```text
+/home/ubuntu/uploads/MiSurvival.zip
+```
+
+El comando acepta:
+
+- una carpeta Bedrock ya extraída;
+- un `.zip`;
+- un `.mcworld`.
+
+Ejemplos:
+
+```bash
+sudo mcserver import-survival "/root/uploads/MiSurvival.zip"
+```
+
+```bash
+sudo mcserver import-survival "/root/uploads/MiSurvival.mcworld"
+```
+
+El archivo puede contener directamente `level.dat`/`db/` o una carpeta contenedora. El importador encuentra el mundo automáticamente y rechaza archivos con más de un mundo o rutas ZIP inseguras.
+
+Validar sin importar:
+
+```bash
+sudo /opt/bedrock-network/app/scripts/import-survival.sh --check "/root/uploads/MiSurvival.zip"
+```
+
+Destino final administrado por el servidor:
+
+```text
+/opt/bedrock-network/instances/survival/worlds/SurvivalWorld/
+```
+
+No copies manualmente archivos allí mientras el servicio esté encendido; usa `mcserver import-survival` para obtener backup, permisos y configuración segura.
+
+### Protección de logros
+
+Survival conserva:
+
+```ini
+gamemode=survival
+force-gamemode=false
+allow-cheats=false
+online-mode=true
+allow-list=true
+```
+
+`level.dat` se copia sin modificar, `SURVIVAL_ENGINE=bds` permanece bloqueado y no se instalan plugins PNX ni Behavior Packs de minijuegos en Survival.
+
+## Red y DuckDNS
+
+```bash
+sudo mcserver network status
+sudo mcserver network verify
+```
+
+Activar el dominio cuando DNS sea correcto:
+
+```bash
+sudo mcserver network use-domain
+```
+
+Volver a la IP:
+
+```bash
+sudo mcserver network use-ip
+```
+
+## Página web y HTTPS
+
+Backend inicial:
+
+```text
+http://147.224.196.17:8080
+```
+
+Configurar Nginx con el dominio real:
+
+```bash
+sudo mcserver web domain minecraftnexora.duckdns.org
+```
+
+Configurar HTTPS:
+
+```bash
+sudo mcserver web https minecraftnexora.duckdns.org TU_CORREO
+```
+
+El administrador se niega a configurar Nginx/Certbot si el dominio no resuelve a `147.224.196.17`. Esto evita solicitar accidentalmente certificados para otro hostname.
+
+En Oracle Cloud también deben permitirse TCP 80/443 en Security Lists/NSG; UFW por sí solo no abre el firewall externo de Oracle.
+
+## Administración
+
+```bash
+mcserver status
+sudo mcserver doctor
+sudo mcserver backup
+sudo mcserver restart
+sudo mcserver update
+sudo mcserver network verify
+```
+
+Logs:
+
+```bash
+sudo mcserver logs lobby
+sudo mcserver logs pvp
+sudo mcserver logs bedwars
+sudo mcserver logs skywars
+```
+
+Web:
+
+```bash
+sudo mcserver web status
+sudo mcserver web restart
 ```
 
 ## PvP — NexoraPractice 0.2
@@ -87,7 +216,7 @@ sudo mcserver import-survival "/ruta/a/TuMundo"
 /lobby
 ```
 
-No requiere mapas externos. Incluye colas, hasta 8 arenas, equipos automáticos, kit PvP, friendly-fire bloqueado, espectador, vacío, `first-to-3` y reutilización automática.
+Incluye arenas autogeneradas, colas, equipos, kit, friendly-fire bloqueado, espectador, eliminación por vacío y partidas `first-to-3`.
 
 ## BedWars — NexoraBedWars 0.1
 
@@ -101,172 +230,55 @@ No requiere mapas externos. Incluye colas, hasta 8 arenas, equipos automáticos,
 /lobby
 ```
 
-Genera bases, centro y vacío para puentes. Cada equipo tiene una cama-núcleo: mientras viva hay respawn; destruida, la próxima muerte es definitiva. La estructura está protegida y los bloques temporales se limpian al terminar.
-
-Tienda:
-
-```text
-4 hierro  -> 16 bloques del equipo
-10 hierro -> espada de piedra
-12 hierro -> pico de hierro
-8 oro     -> arco + flechas
-```
-
-SilentBedwars queda como fallback manual:
-
-```bash
-sudo mcserver plugins install silentbedwars
-```
-
-Para volver:
-
-```bash
-sudo mcserver plugins install nexora-bedwars
-sudo mcserver minigames prepare
-```
+Genera bases, centro, puentes, camas-núcleo, respawn condicionado, recursos y tienda. SilentBedwars permanece como fallback manual.
 
 ## SkyWars — NexoraSkyWars 0.1
 
-SkyWars también es ahora **propio y autogenerado**.
-
 ```text
-/sw solo     -> 4 equipos de 1 (4 jugadores)
-/sw duo      -> 4 equipos de 2 (8 jugadores)
-/sw squad    -> 4 equipos de 4 (16 jugadores)
+/sw solo     -> 4 equipos de 1
+/sw duo      -> 4 equipos de 2
+/sw squad    -> 4 equipos de 4
 /sw leave
 /sw status
 /lobby
 ```
 
-Cada arena genera cuatro islas —Rojo, Azul, Verde y Amarillo— más un centro. Los jugadores reciben bloques para puentes y pueden abrir loot-crates de isla y crates de mejor nivel en el centro. No hay respawn: muerte o vacío elimina al jugador; el último equipo vivo gana. Puentes, bloques y crates se restauran al terminar.
-
-PowerSkywars queda como fallback manual:
-
-```bash
-sudo mcserver plugins install powerskywars
-```
-
-Solo en ese modo legacy se usan mapas externos:
-
-```bash
-sudo mcserver minigames import-skywars Islas1 "/ruta/Islas1" \
-  --spawns "20,70,0;-20,70,0;0,70,20;0,70,-20" \
-  --mid "0,68,0"
-```
-
-Para regresar al motor propio:
-
-```bash
-sudo mcserver plugins install nexora-skywars
-sudo mcserver minigames prepare
-```
-
-## Estado de minijuegos
-
-```bash
-sudo mcserver minigames status
-sudo mcserver minigames verify
-sudo mcserver plugins doctor
-```
-
-Con los motores predeterminados, PvP, BedWars y SkyWars quedan disponibles sin importar mapas. Los importadores se mantienen exclusivamente para los fallbacks upstream.
-
-## Red y DuckDNS
-
-```bash
-sudo mcserver network status
-sudo mcserver network verify
-```
-
-Cuando DuckDNS ya resuelva a `147.224.196.17`:
-
-```bash
-sudo mcserver network use-domain
-```
-
-Para volver a IP:
-
-```bash
-sudo mcserver network use-ip
-```
-
-## Administración
-
-```bash
-mcserver status
-sudo mcserver doctor
-sudo mcserver backup
-sudo mcserver restart
-sudo mcserver update
-```
-
-Motores:
-
-```bash
-mcserver engine status
-sudo mcserver engine set bedwars pnx
-sudo mcserver engine set bedwars bds
-```
-
-Plugins:
-
-```bash
-sudo mcserver plugins list
-sudo mcserver plugins doctor
-sudo mcserver plugins sync
-```
-
-| Instancia | Plugin predeterminado | Fuente |
-|---|---|---|
-| PvP | NexoraPractice 0.2 | propio, Maven |
-| BedWars | NexoraBedWars 0.1 | propio, Maven |
-| SkyWars | NexoraSkyWars 0.1 | propio, Maven |
-| BedWars fallback | SilentBedwars | upstream fijado, manual |
-| SkyWars fallback | PowerSkywars | upstream fijado, manual |
+Genera cuatro islas y centro, loot-crates, bloques para puentes, friendly-fire bloqueado, espectador y eliminación definitiva. PowerSkywars permanece como fallback manual.
 
 ## Actualizaciones
 
+Actualizar todo:
+
 ```bash
 sudo mcserver update
 ```
 
-También:
+Por componente:
 
 ```bash
+sudo mcserver update project
 sudo mcserver update bds
 sudo mcserver update pnx
 sudo mcserver update plugins
-sudo mcserver update project
+```
+
+Rollback de runtimes:
+
+```bash
 sudo mcserver rollback bds VERSION
 sudo mcserver rollback pnx RELEASE
 ```
 
-## Web
-
-Inicialmente:
-
-```text
-http://147.224.196.17:8080
-```
-
-Nginx:
-
-```bash
-sudo mcserver web domain minecraftserver.duckdns.org
-```
-
-HTTPS después de que DNS funcione:
-
-```bash
-sudo mcserver web https minecraftserver.duckdns.org TU_CORREO
-```
-
 ## GitHub Actions
 
-CI valida configuración, aislamiento de Survival, sintaxis, resolver BDS, web, los tres motores Nexora nativos, compatibilidad de SilentBedwars/PowerSkywars como fallbacks y el artifact desplegable.
+CI valida:
 
-Documentación:
-
-- `docs/PLUGIN_ENGINES.md`
-- `docs/MINIGAMES.md`
-- `docs/VPS_DEPLOYMENT.md`
+- configuración y aislamiento de Survival;
+- dominio/IP de despliegue;
+- Bash, Python y JavaScript;
+- los tres motores Nexora;
+- fallbacks SilentBedwars/PowerSkywars;
+- importación de Survival desde `.zip` y `.mcworld`;
+- rechazo de ZIPs inseguros;
+- safety gates de DNS/HTTPS;
+- web y artifact desplegable.
