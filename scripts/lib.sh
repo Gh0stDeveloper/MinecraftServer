@@ -42,7 +42,17 @@ source_config(){
 }
 source_engines(){ local defaults="$APP_DIR/config/engines.env"; [[ -f "$defaults" ]] || defaults="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/config/engines.env"; [[ -f "$defaults" ]] && source "$defaults"; [[ -f "$ENGINES_FILE" ]] && source "$ENGINES_FILE"; LOBBY_ENGINE="${LOBBY_ENGINE:-bds}"; SURVIVAL_ENGINE="${SURVIVAL_ENGINE:-bds}"; PVP_ENGINE="${PVP_ENGINE:-pnx}"; BEDWARS_ENGINE="${BEDWARS_ENGINE:-pnx}"; SKYWARS_ENGINE="${SKYWARS_ENGINE:-pnx}"; PNX_DOWNLOAD_URL="${PNX_DOWNLOAD_URL:-https://github.com/PowerNukkitX/PowerNukkitX/releases/download/snapshot/powernukkitx-shaded.jar}"; PNX_EXPECTED_MINECRAFT="${PNX_EXPECTED_MINECRAFT:-26.40}"; PNX_JAVA_MIN="${PNX_JAVA_MIN:-21}"; PNX_HEAP_MIN="${PNX_HEAP_MIN:-512M}"; PNX_HEAP_MAX="${PNX_HEAP_MAX:-2G}"; MANAGED_PLUGINS="${MANAGED_PLUGINS:-true}"; }
 engine_for(){ source_engines; local instance="$1" var="${1^^}_ENGINE"; printf '%s' "${!var:-bds}"; }
-instances_by_engine(){ local wanted="$1" i; for i in "${INSTANCES[@]}"; do [[ "$(engine_for "$i")" == "$wanted" ]] && printf '%s\n' "$i"; done; }
+instances_by_engine(){
+  local wanted="$1" i
+  for i in "${INSTANCES[@]}"; do
+    if [[ "$(engine_for "$i")" == "$wanted" ]]; then
+      printf '%s\n' "$i"
+    fi
+  done
+  # Empty result is valid. Callers use this in process/command substitutions
+  # while running with `set -e`; never let "no matches" abort an updater.
+  return 0
+}
 validate_engine_layout(){ [[ "$(engine_for lobby)" == bds ]] || die "Lobby debe permanecer en BDS."; [[ "$(engine_for survival)" == bds ]] || die "Survival debe permanecer en BDS para proteger el mundo vanilla."; local i engine; for i in "${INSTANCES[@]}"; do engine="$(engine_for "$i")"; [[ "$engine" == bds || "$engine" == pnx ]] || die "Motor inválido para $i: $engine"; done; }
 lock_manager(){ mkdir -p /run/lock; exec 9>/run/lock/bedrock-network.lock; flock -n 9 || die "Ya existe otra operación administrativa en ejecución."; }
 current_bds_version(){ [[ -f "$STATE_DIR/bds-version" ]] && { cat "$STATE_DIR/bds-version"; return; }; [[ -L "$CURRENT_LINK" ]] && { basename "$(readlink -f "$CURRENT_LINK")"; return; }; printf 'none'; }
@@ -50,7 +60,18 @@ current_pnx_version(){ [[ -f "$STATE_DIR/pnx-version" ]] && { cat "$STATE_DIR/pn
 stop_network(){ local i; for i in "${INSTANCES[@]}"; do systemctl stop "bedrock@$i.service" 2>/dev/null || true; done; }
 start_network(){ local i; for i in "${INSTANCES[@]}"; do systemctl start "bedrock@$i.service"; done; }
 restart_network(){ stop_network; start_network; }
-active_instances(){ local i; for i in "${INSTANCES[@]}"; do systemctl is-active --quiet "bedrock@$i.service" 2>/dev/null && printf '%s\n' "$i"; done; }
+active_instances(){
+  local i
+  for i in "${INSTANCES[@]}"; do
+    if systemctl is-active --quiet "bedrock@$i.service" 2>/dev/null; then
+      printf '%s\n' "$i"
+    fi
+  done
+  # Having zero active services is a legitimate state, especially during
+  # bootstrap of an interrupted fresh install. Return success explicitly so
+  # `was_active="$(active_instances)"` cannot terminate a `set -e` script.
+  return 0
+}
 start_instance_list(){ local list="$1" i; while IFS= read -r i; do [[ -n "$i" ]] && systemctl start "bedrock@$i.service"; done <<< "$list"; }
 instances_healthy(){ local list="$1" i failed=0; sleep 2; while IFS= read -r i; do [[ -n "$i" ]] || continue; systemctl is-active --quiet "bedrock@$i.service" || { warn "$i no está activo."; failed=1; }; done <<< "$list"; return "$failed"; }
 stop_engine(){ local wanted="$1" i; while read -r i; do [[ -n "$i" ]] && systemctl stop "bedrock@$i.service" 2>/dev/null || true; done < <(instances_by_engine "$wanted"); }
