@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071019">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Administración · Bedrock Network</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/admin.css">
+</head>
+<body>
+  <div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
+  <header class="nav wrap"><a class="brand" href="/"><span class="cube"></span><span>Bedrock Network</span></a><nav><a href="/">Inicio</a><a href="#survival">Survival</a></nav></header>
+  <main class="wrap admin-page">
+    <section class="admin-hero">
+      <div class="eyebrow">PANEL PRIVADO</div>
+      <h1>Administrar<br><span>Survival.</span></h1>
+      <p class="lead">Sube tu mundo desde Android como <strong>.zip</strong> o <strong>.mcworld</strong>. El servidor lo valida, crea respaldo e importa sin editar <code>level.dat</code>.</p>
+    </section>
+
+    <section class="admin-grid" id="survival">
+      <article class="admin-card">
+        <span class="tag">1 · AUTENTICACIÓN</span>
+        <h2>Token administrativo</h2>
+        <p>El token se genera desde la VPS con <code>sudo mcserver web admin-token</code>. No se guarda permanentemente en el navegador.</p>
+        <label class="field-label" for="adminToken">Token</label>
+        <div class="token-row"><input id="adminToken" class="admin-input" type="password" autocomplete="off" placeholder="Pega aquí tu token"><button id="checkToken" class="admin-button secondary" type="button">Validar</button></div>
+        <p id="authState" class="admin-state">Sin autenticar.</p>
+      </article>
+
+      <article class="admin-card upload-card">
+        <span class="tag">2 · MUNDO</span>
+        <h2>Subir e importar</h2>
+        <p id="uploadLimit">Selecciona el archivo exportado desde Minecraft. La importación reemplaza el Survival actual después de crear un backup.</p>
+        <label class="drop-zone" for="worldFile" id="dropZone">
+          <input id="worldFile" type="file" accept=".zip,.mcworld,application/zip" hidden>
+          <strong id="fileTitle">Seleccionar .zip o .mcworld</strong>
+          <span id="fileMeta">Toca aquí para buscar el mundo en tu teléfono.</span>
+        </label>
+        <button id="uploadWorld" class="admin-button primary" type="button" disabled>Subir e importar Survival</button>
+        <div class="progress-wrap" id="progressWrap" hidden><div class="progress-track"><div id="progressBar" class="progress-bar"></div></div><div class="progress-line"><span id="progressText">Preparando…</span><strong id="progressPercent">0%</strong></div></div>
+        <pre id="importLog" class="admin-log" hidden></pre>
+      </article>
+    </section>
+
+    <section class="admin-warning">
+      <strong>Protección del mundo</strong>
+      <p>El importador mantiene BDS oficial, <code>allow-cheats=false</code>, <code>force-gamemode=false</code> y copia <code>level.dat</code> sin modificarlo. No subas un mundo mientras otro proceso administrativo esté trabajando sobre Survival.</p>
+    </section>
+  </main>
+  <footer class="wrap"><span>Bedrock Network · Administración</span><span>Acceso privado</span></footer>
+  <script src="/admin.js" defer></script>
+</body>
+</html>

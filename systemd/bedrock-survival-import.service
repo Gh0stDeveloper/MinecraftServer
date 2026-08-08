@@ -1,0 +1,14 @@
+[Unit]
+Description=Process queued Survival world upload
+After=network.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/opt/bedrock-network/scripts/process-web-import.sh
+Nice=5
+IOSchedulingClass=best-effort
+IOSchedulingPriority=6
+PrivateTmp=true
+ProtectHome=true

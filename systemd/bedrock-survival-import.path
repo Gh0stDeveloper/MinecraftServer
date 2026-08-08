@@ -1,0 +1,10 @@
+[Unit]
+Description=Watch queued Survival uploads from Bedrock Network web
+After=local-fs.target
+
+[Path]
+PathExistsGlob=/opt/bedrock-network/uploads/requests/*.json
+Unit=bedrock-survival-import.service
+
+[Install]
+WantedBy=multi-user.target

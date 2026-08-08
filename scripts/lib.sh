@@ -38,6 +38,7 @@ source_config(){
   BEDWARS_PORT="${BEDWARS_PORT:-19135}"
   SKYWARS_PORT="${SKYWARS_PORT:-19136}"
   WEB_PORT="${WEB_PORT:-8080}"
+  WEB_MAX_UPLOAD_MB="${WEB_MAX_UPLOAD_MB:-4096}"
 }
 source_engines(){ local defaults="$APP_DIR/config/engines.env"; [[ -f "$defaults" ]] || defaults="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/config/engines.env"; [[ -f "$defaults" ]] && source "$defaults"; [[ -f "$ENGINES_FILE" ]] && source "$ENGINES_FILE"; LOBBY_ENGINE="${LOBBY_ENGINE:-bds}"; SURVIVAL_ENGINE="${SURVIVAL_ENGINE:-bds}"; PVP_ENGINE="${PVP_ENGINE:-pnx}"; BEDWARS_ENGINE="${BEDWARS_ENGINE:-pnx}"; SKYWARS_ENGINE="${SKYWARS_ENGINE:-pnx}"; PNX_DOWNLOAD_URL="${PNX_DOWNLOAD_URL:-https://github.com/PowerNukkitX/PowerNukkitX/releases/download/snapshot/powernukkitx-shaded.jar}"; PNX_EXPECTED_MINECRAFT="${PNX_EXPECTED_MINECRAFT:-26.40}"; PNX_JAVA_MIN="${PNX_JAVA_MIN:-21}"; PNX_HEAP_MIN="${PNX_HEAP_MIN:-512M}"; PNX_HEAP_MAX="${PNX_HEAP_MAX:-2G}"; MANAGED_PLUGINS="${MANAGED_PLUGINS:-true}"; }
 engine_for(){ source_engines; local instance="$1" var="${1^^}_ENGINE"; printf '%s' "${!var:-bds}"; }
@@ -56,4 +57,21 @@ stop_engine(){ local wanted="$1" i; while read -r i; do [[ -n "$i" ]] && systemc
 start_engine(){ local wanted="$1" i; while read -r i; do [[ -n "$i" ]] && systemctl start "bedrock@$i.service"; done < <(instances_by_engine "$wanted"); }
 services_healthy(){ local i failed=0; sleep 2; for i in "${INSTANCES[@]}"; do systemctl is-active --quiet "bedrock@$i.service" || { warn "$i no está activo."; failed=1; }; done; return "$failed"; }
 assert_survival_safe(){ "$APP_DIR/scripts/check-survival-safety.sh" "$INSTANCES_DIR/survival/server.properties"; }
-install_units(){ cp "$APP_DIR/systemd/bedrock@.service" /etc/systemd/system/; cp "$APP_DIR/systemd/bedrock-backup-survival.service" /etc/systemd/system/; cp "$APP_DIR/systemd/bedrock-backup-survival.timer" /etc/systemd/system/; cp "$APP_DIR/systemd/bedrock-web.service" /etc/systemd/system/; cp "$APP_DIR/systemd/bedrock-auto-update.service" /etc/systemd/system/; cp "$APP_DIR/systemd/bedrock-auto-update.timer" /etc/systemd/system/; systemctl daemon-reload; local i; for i in "${INSTANCES[@]}"; do systemctl enable "bedrock@$i.service" >/dev/null; done; systemctl enable bedrock-backup-survival.timer bedrock-web.service >/dev/null; }
+install_units(){
+  cp "$APP_DIR/systemd/bedrock@.service" /etc/systemd/system/
+  cp "$APP_DIR/systemd/bedrock-backup-survival.service" /etc/systemd/system/
+  cp "$APP_DIR/systemd/bedrock-backup-survival.timer" /etc/systemd/system/
+  cp "$APP_DIR/systemd/bedrock-web.service" /etc/systemd/system/
+  cp "$APP_DIR/systemd/bedrock-auto-update.service" /etc/systemd/system/
+  cp "$APP_DIR/systemd/bedrock-auto-update.timer" /etc/systemd/system/
+  cp "$APP_DIR/systemd/bedrock-survival-import.service" /etc/systemd/system/
+  cp "$APP_DIR/systemd/bedrock-survival-import.path" /etc/systemd/system/
+  mkdir -p "$ROOT/uploads/requests" "$STATE_DIR/web-imports"
+  chown -R bedrock:bedrock "$ROOT/uploads" "$STATE_DIR/web-imports"
+  chmod 0750 "$ROOT/uploads" "$ROOT/uploads/requests" "$STATE_DIR/web-imports"
+  systemctl daemon-reload
+  local i
+  for i in "${INSTANCES[@]}"; do systemctl enable "bedrock@$i.service" >/dev/null; done
+  systemctl enable bedrock-backup-survival.timer bedrock-web.service bedrock-survival-import.path >/dev/null
+  systemctl start bedrock-survival-import.path >/dev/null 2>&1 || true
+}

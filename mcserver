@@ -32,8 +32,12 @@ Uso: mcserver <comando>
   doctor                                     Diagnóstico completo
   logs [instancia]                           Logs en vivo
   web status|restart                         Control de web
+  web admin-token                            Generar/cambiar token del panel privado
   web domain [DOMINIO]                       Configurar Nginx (usa PUBLIC_DOMAIN si se omite)
   web https DOMINIO EMAIL                    Configurar HTTPS con validación DNS
+
+Panel privado:
+  https://DOMINIO/admin.html
 
 Mantenimiento normal:
   sudo mcserver update
