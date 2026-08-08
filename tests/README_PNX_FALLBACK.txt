@@ -1,1 +1,0 @@
-CI note: tests/test_pnx_source_pin.py verifies that the pinned official PowerNukkitX source commit still advertises the expected server/Bedrock versions and still defines the shaded runnable JAR build.
