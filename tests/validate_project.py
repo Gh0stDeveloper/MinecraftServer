@@ -24,7 +24,6 @@ def validate_instances():
     assert int(props(ROOT/"instances"/"skywars"/"server.properties").get("max-players","0"))>=16
 def validate_deployment():
     n=env(ROOT/"config"/"network.env")
-    # Public repository templates must never ship a real author's IP/domain.
     assert n.get("PUBLIC_IP","")==""
     assert n.get("PUBLIC_DOMAIN","")==""
     assert n.get("PUBLIC_HOST","")==""
@@ -72,9 +71,9 @@ def validate_survival_isolation():
     for p in [s/"behavior_packs",s/"plugins",s/"pnx.yml",s/"world_behavior_packs.json"]: assert not p.exists()
 def validate_required_files():
     required=[
-        "mcserver","scripts/ui.sh","scripts/launch-instance.sh","scripts/update-pnx.sh","scripts/bds-downloader.py",
+        "mcserver","scripts/ui.sh","scripts/launch-instance.sh","scripts/update-pnx.sh","scripts/pnx-jar-validator.py","scripts/bds-downloader.py",
         "scripts/engine-manager.sh","scripts/plugin-manager.sh","scripts/minigame-manager.sh","scripts/network-manager.sh",
-        "scripts/normalize-permissions.sh","scripts/bootstrap-runtime.sh","scripts/firewall-manager.sh","tests/test_pnx_source_pin.py",
+        "scripts/normalize-permissions.sh","scripts/bootstrap-runtime.sh","scripts/firewall-manager.sh","tests/test_pnx_source_pin.py","tests/test_pnx_jar_validator.py",
         "systemd/bedrock@.service","pnx-plugins/nexora-practice/src/main/resources/plugin.yml",
         "pnx-plugins/nexora-bedwars/src/main/resources/plugin.yml","pnx-plugins/nexora-skywars/src/main/resources/plugin.yml",
     ]
@@ -99,6 +98,7 @@ stop_engine impossible
         subprocess.run(["bash","-c",command],check=True,env=envp,cwd=ROOT)
 def validate_bds_downloader(): subprocess.run([os.environ.get("PYTHON","python3"),str(ROOT/"tests"/"test_bds_downloader.py")],check=True,cwd=ROOT)
 def validate_pnx_source_pin(): subprocess.run([os.environ.get("PYTHON","python3"),str(ROOT/"tests"/"test_pnx_source_pin.py")],check=True,cwd=ROOT)
+def validate_pnx_jar_validator(): subprocess.run([os.environ.get("PYTHON","python3"),str(ROOT/"tests"/"test_pnx_jar_validator.py")],check=True,cwd=ROOT)
 def main():
-    validate_instances(); validate_deployment(); validate_public_docs(); validate_engines(); validate_json(); validate_manifests(); validate_plugins(); validate_survival_isolation(); validate_required_files(); validate_empty_service_state(); validate_bds_downloader(); validate_pnx_source_pin(); print("All native-minigame BedrockNetwork checks passed.")
+    validate_instances(); validate_deployment(); validate_public_docs(); validate_engines(); validate_json(); validate_manifests(); validate_plugins(); validate_survival_isolation(); validate_required_files(); validate_empty_service_state(); validate_bds_downloader(); validate_pnx_source_pin(); validate_pnx_jar_validator(); print("All native-minigame BedrockNetwork checks passed.")
 if __name__=="__main__": main()
