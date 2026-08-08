@@ -1,7 +1,7 @@
 name: Bedrock Network CI
 on:
   push:
-    branches: [main, "agent/**", "fix/**"]
+    branches: [main, "agent/**", "fix/**", "feature/**"]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -36,6 +36,7 @@ jobs:
           source config/engines.env
           [[ "$PUBLIC_IP" == "147.224.196.17" ]]
           [[ "$PUBLIC_DOMAIN" == "minecraftnexora.duckdns.org" ]]
+          [[ "$WEB_MAX_UPLOAD_MB" -ge 1024 ]]
           [[ "$SURVIVAL_ENGINE" == bds ]]
           [[ "$PVP_ENGINE" == pnx && "$BEDWARS_ENGINE" == pnx && "$SKYWARS_ENGINE" == pnx ]]
       - name: Test BDS update resolver
@@ -103,16 +104,34 @@ jobs:
           grep -q 'conflicts' config/plugins.json
           grep -q 'modeReady' addons/lobby_bp/scripts/main.js
           grep -q 'require_correct_dns' scripts/web-setup.sh
+          grep -q 'secure_admin_request' web/server.py
+          grep -q 'bedrock-survival-import.path' scripts/lib.sh
           grep -q 'survival-pending-import' scripts/network-manager.sh
-      - name: Smoke test public website
+      - name: Smoke test website and authenticated upload queue
         shell: bash
         run: |
           set -euo pipefail
-          BEDROCK_BASE="$PWD" WEB_HOST=127.0.0.1 WEB_PORT=18080 python3 web/server.py >/tmp/bedrock-web.log 2>&1 &
+          token='ci-admin-token'
+          printf '%s' "$token" | sha256sum | awk '{print $1}' > config/web-admin.token.sha256
+          rm -rf uploads state/web-imports
+          BEDROCK_BASE="$PWD" WEB_HOST=127.0.0.1 WEB_PORT=18080 WEB_MAX_UPLOAD_MB=16 python3 web/server.py >/tmp/bedrock-web.log 2>&1 &
           pid=$!
           trap 'kill "$pid" 2>/dev/null || true' EXIT
           for _ in {1..20}; do curl -fsS http://127.0.0.1:18080/healthz >/dev/null && break; sleep .25; done
           curl -fsS http://127.0.0.1:18080/healthz | python3 -c 'import json,sys; assert json.load(sys.stdin)["ok"] is True'
+          code="$(curl -sS -o /tmp/noauth.json -w '%{http_code}' http://127.0.0.1:18080/api/admin/check)"
+          [[ "$code" == 401 ]]
+          curl -fsS -H "X-Admin-Token: $token" http://127.0.0.1:18080/api/admin/check | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d["ok"] is True and d["max_upload_mb"]==16'
+          printf 'fake-zip-body' >/tmp/Survival.zip
+          curl -fsS -X POST -H "X-Admin-Token: $token" -H 'X-Filename: Survival.zip' -H 'Content-Type: application/octet-stream' --data-binary @/tmp/Survival.zip http://127.0.0.1:18080/api/admin/survival/upload >/tmp/upload.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.load(open('/tmp/upload.json'))
+          assert d['ok'] is True and d['state']=='queued' and len(d['id'])==32
+          assert (Path('uploads/requests')/(d['id']+'.json')).is_file()
+          assert (Path('state/web-imports')/(d['id']+'.json')).is_file()
+          PY
 
   bedwars-fallback-compatibility:
     name: Build pinned BedWars fallback
