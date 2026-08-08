@@ -1,6 +1,6 @@
 name: NexoraPractice
 main: dev.gh0stdeveloper.minecraft.practice.NexoraPractice
-version: "0.2.1"
+version: "0.2.0"
 api: "3.0.2"
 load: POSTWORLD
 author: Gh0stDeveloper
