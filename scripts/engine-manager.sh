@@ -15,7 +15,10 @@ Lobby y Survival están bloqueados a BDS.
 HELP
 }
 prepare_pnx(){
-  local instance="$1" target="$INSTANCES_DIR/$instance"
+  local instance target
+  instance="$1"
+  target="$INSTANCES_DIR/$instance"
+  [[ "$instance" == pvp || "$instance" == bedwars || "$instance" == skywars ]] || die "Instancia PNX inválida: $instance"
   mkdir -p "$target/plugins" "$target/worlds"
   if [[ ! -f "$target/pnx.yml" ]]; then
     cat > "$target/pnx.yml" <<'YAML'
