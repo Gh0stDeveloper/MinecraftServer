@@ -1,2 +1,7 @@
-lobby-host: 127.0.0.1
+lobby-host: 147.224.196.17
 lobby-port: 19132
+
+# Infraestructura PvP autogenerada en el mundo de la instancia.
+arena-base-y: 180
+arena-slots: 8
+first-to: 3
