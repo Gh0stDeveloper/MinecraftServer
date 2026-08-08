@@ -42,7 +42,7 @@ backup_dir(){
 }
 
 render_skywars_config(){
-  local out="$INSTANCES_DIR/skywars/plugins/PowerSkywars/maps_config.yml"
+  local out="$INSTANCES_DIR/skywars/plugins/PowerSkywars/maps_config.yml" name mid
   mkdir -p "$(dirname "$out")"
   : > "$out"
   while IFS= read -r row; do
@@ -71,7 +71,7 @@ prepare(){
   local props="$INSTANCES_DIR/bedwars/server.properties"
   if [[ -f "$props" ]]; then
     if grep -q '^level-name=' "$props"; then sed -i 's/^level-name=.*/level-name=world/' "$props"; else printf '\nlevel-name=world\n' >> "$props"; fi
-    if grep -q '^max-players=' "$props"; then sed -i 's/^max-players=.*/max-players=8/' "$props"; fi
+    if grep -q '^max-players=' "$props"; then sed -i 's/^max-players=.*/max-players=8/' "$props"; else printf 'max-players=8\n' >> "$props"; fi
   fi
   mkdir -p "$INSTANCES_DIR/bedwars/plugins/SilentBedwars" "$INSTANCES_DIR/skywars/plugins/PowerSkywars/maps"
   render_skywars_config
@@ -83,7 +83,7 @@ prepare(){
 parse_vec3(){
   local raw="$1"
   [[ "$raw" =~ ^-?[0-9]+,-?[0-9]+,-?[0-9]+$ ]] || die "Vector inválido: $raw (usa x,y,z enteros)"
-  printf '[%s]' "${raw//,/","}"
+  printf '[%s]' "$raw"
 }
 
 import_bedwars(){
@@ -116,7 +116,9 @@ import_skywars(){
   local spawn_json='[]' count=0 one vec
   IFS=';' read -ra SPAWN_LIST <<< "$spawns"
   for one in "${SPAWN_LIST[@]}"; do
-    vec="$(parse_vec3 "$one")"; spawn_json="$(jq -c --argjson v "$vec" '. + [$v]' <<<"$spawn_json")"; count=$((count+1))
+    vec="$(parse_vec3 "$one")"
+    spawn_json="$(jq -c --argjson v "$vec" '. + [$v]' <<<"$spawn_json")"
+    count=$((count+1))
   done
   ((count >= 2)) || die 'SkyWars necesita al menos 2 spawns.'
   local mid_json; mid_json="$(parse_vec3 "$mid")"
@@ -171,7 +173,9 @@ verify(){
   fi
   if [[ -f "$INSTANCES_DIR/skywars/plugins/powerskywars.jar" ]]; then
     jq -e '.maps | type=="array"' "$SKY_MANIFEST" >/dev/null || { warn 'Manifiesto SkyWars inválido.'; fail=$((fail+1)); }
-    while IFS= read -r name; do [[ -f "$INSTANCES_DIR/skywars/plugins/PowerSkywars/maps/$name/level.dat" ]] || { warn "Falta mundo SkyWars $name."; fail=$((fail+1)); }; done < <(jq -r '.maps[].name' "$SKY_MANIFEST")
+    while IFS= read -r name; do
+      [[ -f "$INSTANCES_DIR/skywars/plugins/PowerSkywars/maps/$name/level.dat" ]] || { warn "Falta mundo SkyWars $name."; fail=$((fail+1)); }
+    done < <(jq -r '.maps[].name' "$SKY_MANIFEST")
   fi
   ((fail == 0)) && ok 'Minijuegos sin bloqueos de configuración.' || die "Se encontraron $fail problema(s) de minijuegos."
 }
