@@ -95,4 +95,4 @@ DNS_STATE="sin dominio"
 if [[ -n "$DOMAIN" ]]; then
   if domain_matches_ip "$DOMAIN" "$PUBLIC_IP"; then DNS_STATE="$DOMAIN -> $PUBLIC_IP (OK)"; else DNS_STATE="$DOMAIN todavía no resuelve a $PUBLIC_IP"; fi
 fi
-printf '\n[OK] Instalación híbrida terminada.\nMinecraft: %s:%s\nIP pública: %s\nDNS: %s\nWeb: http://%s:%s\n\nMotores: lobby=bds survival=bds pvp=pnx bedwars=pnx skywars=pnx\nPvP queda disponible al instalar NexoraPractice. BedWars/SkyWars permanecen bloqueados en el lobby hasta importar mapas válidos.\nUsa: sudo mcserver minigames status\nUsa: sudo mcserver network verify\n' "$HOST" "$LOBBY_PORT" "$PUBLIC_IP" "$DNS_STATE" "$HOST" "$WEB_PORT"
+printf '\n[OK] Instalación híbrida terminada.\nMinecraft: %s:%s\nIP pública: %s\nDNS: %s\nWeb: http://%s:%s\n\nMotores: lobby=bds survival=bds pvp=pnx bedwars=pnx skywars=pnx\nPvP y BedWars quedan disponibles automáticamente con NexoraPractice/NexoraBedWars. SkyWars se habilita al importar al menos un mapa válido.\nUsa: sudo mcserver minigames status\nUsa: sudo mcserver network verify\n' "$HOST" "$LOBBY_PORT" "$PUBLIC_IP" "$DNS_STATE" "$HOST" "$WEB_PORT"

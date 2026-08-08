@@ -1,0 +1,14 @@
+name: NexoraBedWars
+main: dev.gh0stdeveloper.minecraft.bedwars.NexoraBedWars
+version: "0.1.0"
+api: "2.0.0"
+load: POSTWORLD
+author: Gh0stDeveloper
+description: Native configurable BedWars engine for the Nexora Bedrock Network.
+commands:
+  bw:
+    description: BedWars Solo, Duo y Escuadra.
+    usage: "/bw <solo|duo|squad|leave|status|shop|rebuild>"
+  lobby:
+    description: Volver al lobby principal.
+    usage: "/lobby"

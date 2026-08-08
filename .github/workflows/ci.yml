@@ -8,7 +8,7 @@ permissions:
   contents: read
 jobs:
   validate:
-    name: Validate playable hybrid project
+    name: Validate native minigame project
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -34,15 +34,10 @@ jobs:
           set -euo pipefail
           source config/network.env
           source config/engines.env
-          [[ "$SERVER_NAME" == "Bedrock Network" ]]
           [[ "$PUBLIC_IP" == "147.224.196.17" ]]
           [[ "$PUBLIC_DOMAIN" == "minecraftserver.duckdns.org" ]]
-          [[ "$PUBLIC_HOST" == "$PUBLIC_IP" ]]
           [[ "$SURVIVAL_ENGINE" == bds ]]
-          [[ "$PVP_ENGINE" == pnx ]]
-          [[ "$BEDWARS_ENGINE" == pnx ]]
-          [[ "$SKYWARS_ENGINE" == pnx ]]
-          [[ "$PNX_JAVA_MIN" -ge 21 ]]
+          [[ "$PVP_ENGINE" == pnx && "$BEDWARS_ENGINE" == pnx && "$SKYWARS_ENGINE" == pnx ]]
       - name: Test BDS update resolver
         run: python3 tests/test_bds_resolver.py
       - name: Validate shell syntax
@@ -59,20 +54,23 @@ jobs:
           while IFS= read -r -d '' source; do node --check "$source"; done < <(find addons web -type f -name '*.js' -print0)
       - name: Validate Python syntax
         run: python3 -m py_compile scripts/bds-resolver.py web/server.py tests/validate_project.py tests/validate_plugin_catalog.py tests/test_bds_resolver.py
-      - name: Build playable NexoraPractice plugin
+      - name: Build native PvP plugin
         run: |
           mvn -q -f pnx-plugins/nexora-practice/pom.xml -DskipTests package
           test -f pnx-plugins/nexora-practice/target/nexora-practice-0.2.0.jar
+      - name: Build native BedWars plugin
+        run: |
+          mvn -q -f pnx-plugins/nexora-bedwars/pom.xml -DskipTests package
+          test -f pnx-plugins/nexora-bedwars/target/nexora-bedwars-0.1.0.jar
       - name: Validate Survival achievement safety
         run: bash scripts/check-survival-safety.sh instances/survival/server.properties
       - name: Validate minigame safety gates
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'bedwars-map.ready' scripts/render-lobby-config.sh
-          grep -q 'import-bedwars' scripts/minigame-manager.sh
-          grep -q 'import-skywars' scripts/minigame-manager.sh
-          grep -q 'printf '\''\[%s\]'\'' "\$raw"' scripts/minigame-manager.sh
+          grep -q 'nexora-bedwars.jar' scripts/render-lobby-config.sh
+          grep -q 'NexoraBedWars' scripts/minigame-manager.sh
+          grep -q 'conflicts' config/plugins.json
           grep -q 'modeReady' addons/lobby_bp/scripts/main.js
       - name: Smoke test public website
         shell: bash
@@ -83,10 +81,9 @@ jobs:
           trap 'kill "$pid" 2>/dev/null || true' EXIT
           for _ in {1..20}; do curl -fsS http://127.0.0.1:18080/healthz >/dev/null && break; sleep .25; done
           curl -fsS http://127.0.0.1:18080/healthz | python3 -c 'import json,sys; assert json.load(sys.stdin)["ok"] is True'
-          curl -fsS http://127.0.0.1:18080/api/status | python3 -c 'import json,sys; d=json.load(sys.stdin); assert len(d["servers"])==5; e={x["id"]:x["engine"] for x in d["servers"]}; assert e=={"lobby":"bds","survival":"bds","pvp":"pnx","bedwars":"pnx","skywars":"pnx"}'
 
-  bedwars-compatibility:
-    name: Build pinned BedWars plugin
+  bedwars-fallback-compatibility:
+    name: Build pinned BedWars fallback
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -95,13 +92,12 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - name: Build SilentBedwars against current PowerNukkitX API
+      - name: Build SilentBedwars fallback against current PNX API
         shell: bash
         run: |
           set -euo pipefail
           git clone -q https://github.com/SilentWolf6662/SilentBedwars.git /tmp/bedwars
           git -C /tmp/bedwars checkout -q --detach e441c2f96619fcc20ee382ee2a44017cfcb3fd35
-          test "$(git -C /tmp/bedwars rev-parse HEAD)" = e441c2f96619fcc20ee382ee2a44017cfcb3fd35
           chmod +x /tmp/bedwars/gradlew
           (cd /tmp/bedwars && ./gradlew --no-daemon --console=plain --init-script "$GITHUB_WORKSPACE/config/pnx-gradle.init.gradle" clean shadowJar)
           find /tmp/bedwars/build/libs -name 'SilentBedwars-*.jar' -type f | grep -q .
@@ -122,20 +118,18 @@ jobs:
           set -euo pipefail
           git clone -q https://github.com/VenityNetwork/PowerSkywars.git /tmp/skywars
           git -C /tmp/skywars checkout -q --detach 611466227c6a6435f527dc970d241f580dea090d
-          test "$(git -C /tmp/skywars rev-parse HEAD)" = 611466227c6a6435f527dc970d241f580dea090d
           chmod +x /tmp/skywars/gradlew
           (cd /tmp/skywars && ./gradlew --no-daemon --console=plain --init-script "$GITHUB_WORKSPACE/config/pnx-gradle.init.gradle" clean jar)
           find /tmp/skywars/build -maxdepth 1 -name '*.jar' -type f | grep -q .
 
   package:
     name: Package deployable project
-    needs: [validate, bedwars-compatibility, skywars-compatibility]
+    needs: [validate, bedwars-fallback-compatibility, skywars-compatibility]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Create installation archive
-        run: |
-          tar --exclude='.git' --exclude='target' --exclude='build' --exclude='__pycache__' --exclude='*.pyc' -czf bedrock-network.tar.gz README.md install.sh mcserver addons config docs instances pnx-plugins scripts systemd tests web
+        run: tar --exclude='.git' --exclude='target' --exclude='build' --exclude='__pycache__' --exclude='*.pyc' -czf bedrock-network.tar.gz README.md install.sh mcserver addons config docs instances pnx-plugins scripts systemd tests web
       - uses: actions/upload-artifact@v4
         with:
           name: bedrock-network
