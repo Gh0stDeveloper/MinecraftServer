@@ -20,6 +20,11 @@ Uso: mcserver <comando>
   engine set <minijuego> <bds|pnx>           Cambiar motor con backup y rollback
   plugins list|sync|doctor                   Gestionar catálogo de plugins PNX
   plugins install <id>                       Compilar/instalar un plugin fijado
+  minigames status|prepare|verify             Estado y validación de minijuegos
+  minigames import-bedwars /ruta/Mundo       Importar mapa BedWars
+  minigames import-skywars ...               Importar mapa SkyWars + coordenadas
+  network status|verify                      Comprobar IP, DNS y puertos
+  network use-domain|use-ip                  Cambiar host público de transferencias
   auto-update enable|disable|status          Actualización diaria (opcional)
   start | stop | restart                     Control de toda la red
   backup                                     Backup consistente
@@ -47,6 +52,7 @@ case "$cmd" in
         "$APP_DIR/scripts/update-bds.sh" latest
         "$APP_DIR/scripts/update-pnx.sh" latest
         "$APP_DIR/scripts/plugin-manager.sh" sync
+        "$APP_DIR/scripts/minigame-manager.sh" prepare
         exec "$APP_DIR/scripts/doctor.sh";;
       project) exec "$APP_DIR/scripts/update-project.sh";;
       bds) exec "$APP_DIR/scripts/update-bds.sh" "$@";;
@@ -62,6 +68,8 @@ case "$cmd" in
     echo '[ERROR] Uso: mcserver rollback bds <version> | pnx <release>' >&2; exit 1;;
   engine) require_root; exec "$RUNTIME_BASE/scripts/engine-manager.sh" "$@";;
   plugins) require_root; exec "$RUNTIME_BASE/scripts/plugin-manager.sh" "$@";;
+  minigames) require_root; exec "$RUNTIME_BASE/scripts/minigame-manager.sh" "$@";;
+  network) require_root; exec "$RUNTIME_BASE/scripts/network-manager.sh" "$@";;
   auto-update)
     require_root
     case "${1:-status}" in

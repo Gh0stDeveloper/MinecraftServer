@@ -1,14 +1,14 @@
 name: Bedrock Network CI
 on:
   push:
-    branches: [main, agent/hybrid-plugin-engines]
+    branches: [main, "agent/**"]
   pull_request:
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   validate:
-    name: Validate hybrid project
+    name: Validate playable hybrid project
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -35,6 +35,9 @@ jobs:
           source config/network.env
           source config/engines.env
           [[ "$SERVER_NAME" == "Bedrock Network" ]]
+          [[ "$PUBLIC_IP" == "147.224.196.17" ]]
+          [[ "$PUBLIC_DOMAIN" == "minecraftserver.duckdns.org" ]]
+          [[ "$PUBLIC_HOST" == "$PUBLIC_IP" ]]
           [[ "$SURVIVAL_ENGINE" == bds ]]
           [[ "$PVP_ENGINE" == pnx ]]
           [[ "$BEDWARS_ENGINE" == pnx ]]
@@ -56,10 +59,21 @@ jobs:
           while IFS= read -r -d '' source; do node --check "$source"; done < <(find addons web -type f -name '*.js' -print0)
       - name: Validate Python syntax
         run: python3 -m py_compile scripts/bds-resolver.py web/server.py tests/validate_project.py tests/validate_plugin_catalog.py tests/test_bds_resolver.py
-      - name: Build internal PowerNukkitX plugin
-        run: mvn -q -f pnx-plugins/nexora-practice/pom.xml -DskipTests package
+      - name: Build playable NexoraPractice plugin
+        run: |
+          mvn -q -f pnx-plugins/nexora-practice/pom.xml -DskipTests package
+          test -f pnx-plugins/nexora-practice/target/nexora-practice-0.2.0.jar
       - name: Validate Survival achievement safety
         run: bash scripts/check-survival-safety.sh instances/survival/server.properties
+      - name: Validate minigame safety gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'bedwars-map.ready' scripts/render-lobby-config.sh
+          grep -q 'import-bedwars' scripts/minigame-manager.sh
+          grep -q 'import-skywars' scripts/minigame-manager.sh
+          grep -q 'printf '\''\[%s\]'\'' "\$raw"' scripts/minigame-manager.sh
+          grep -q 'modeReady' addons/lobby_bp/scripts/main.js
       - name: Smoke test public website
         shell: bash
         run: |
