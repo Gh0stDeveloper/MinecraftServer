@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/lib.sh"
+source "$SCRIPT_DIR/socket-check.sh"
 require_root
 source_config
 source_engines
@@ -19,7 +20,7 @@ ensure_dependencies(){
 wait_udp(){
   local instance="$1" port="$2" tries=0 state
   while ((tries < 45)); do
-    if ss -H -lun 2>/dev/null | awk '{print $5}' | grep -Eq "(:|\\])${port}$"; then ok "$instance escuchando en UDP/$port"; return 0; fi
+    if udp_port_listening "$port"; then ok "$instance escuchando en UDP/$port"; return 0; fi
     state="$(systemctl is-active "bedrock@$instance.service" 2>/dev/null || true)"
     if [[ "$state" == failed ]]; then journalctl -u "bedrock@$instance.service" -n 40 --no-pager >&2 || true; die "$instance falló durante el arranque."; fi
     sleep 2; tries=$((tries+1))
