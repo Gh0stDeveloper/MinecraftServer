@@ -15,7 +15,7 @@ def env(path:Path)->dict[str,str]: return {k:v.strip('"').strip("'") for k,v in 
 def validate_instances():
     for instance,port in EXPECTED_PORTS.items():
         d=props(ROOT/"instances"/instance/"server.properties"); assert d.get("server-port")==port; assert d.get("online-mode")=="true"
-    s=props(ROOT/"instances"/survival"/"server.properties")
+    s=props(ROOT/"instances"/"survival"/"server.properties")
     for k,v in {"gamemode":"survival","force-gamemode":"false","allow-cheats":"false","online-mode":"true","allow-list":"true","level-name":"SurvivalWorld"}.items(): assert s.get(k)==v
     assert int(props(ROOT/"instances"/"skywars"/"server.properties").get("max-players","0"))>=16
 def validate_deployment():
