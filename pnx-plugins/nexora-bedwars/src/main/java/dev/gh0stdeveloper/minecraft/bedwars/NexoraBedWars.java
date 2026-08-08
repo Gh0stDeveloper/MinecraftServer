@@ -449,7 +449,7 @@ public final class NexoraBedWars extends PluginBase implements Listener {
     }
 
     private enum Team {
-        RED("ROJO", TextFormat.RED), BLUE("AZUL", TextFormat.AQUA);
+        RED("ROJO", TextFormat.RED.toString()), BLUE("AZUL", TextFormat.AQUA.toString());
         private final String label;
         private final String color;
         Team(String label, String color) { this.label = label; this.color = color; }
