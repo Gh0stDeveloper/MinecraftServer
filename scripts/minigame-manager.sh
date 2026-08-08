@@ -8,6 +8,7 @@ source_engines
 
 MINIGAME_STATE="$ROOT/minigames"
 SKY_MANIFEST="$MINIGAME_STATE/skywars-maps.json"
+BEDWARS_READY="$MINIGAME_STATE/bedwars-map.ready"
 mkdir -p "$MINIGAME_STATE"
 [[ -f "$SKY_MANIFEST" ]] || printf '{"maps":[]}\n' > "$SKY_MANIFEST"
 
@@ -94,9 +95,11 @@ import_bedwars(){
   backup_dir "$target" bedwars-world
   mkdir -p "$(dirname "$target")"; rm -rf "$target"; mkdir -p "$target"; rsync -a "$src/" "$target/"
   chown -R bedrock:bedrock "$target"
+  printf '%s\n' "$(date -u +%FT%TZ)" > "$BEDWARS_READY"
+  chown bedrock:bedrock "$BEDWARS_READY"
   prepare
   ((was_active)) && systemctl start bedrock@bedwars.service || true
-  ok 'Mapa BedWars importado como world. Verifica que sus bases coincidan con la configuración de la arena.'
+  ok 'Mapa BedWars importado y marcado como validado. Verifica que sus bases coincidan con la configuración de la arena.'
 }
 
 import_skywars(){
@@ -154,13 +157,13 @@ remove_skywars(){
 status(){
   local bw='NO LISTO' sw='NO LISTO' pvp='NO LISTO' sw_count
   [[ -f "$INSTANCES_DIR/pvp/plugins/nexora-practice.jar" ]] && pvp='LISTO'
-  [[ -f "$INSTANCES_DIR/bedwars/plugins/silentbedwars.jar" && -f "$INSTANCES_DIR/bedwars/worlds/world/level.dat" ]] && bw='LISTO'
+  [[ -f "$INSTANCES_DIR/bedwars/plugins/silentbedwars.jar" && -f "$INSTANCES_DIR/bedwars/worlds/world/level.dat" && -f "$BEDWARS_READY" ]] && bw='LISTO'
   sw_count="$(jq '.maps|length' "$SKY_MANIFEST" 2>/dev/null || echo 0)"
   [[ -f "$INSTANCES_DIR/skywars/plugins/powerskywars.jar" && "$sw_count" -gt 0 ]] && sw='LISTO'
   printf '\n%-10s %-12s %s\n' MODO ESTADO DETALLE
   printf '%-10s %-12s %s\n' '----' '------' '-------'
   printf '%-10s %-12s %s\n' PvP "$pvp" '1v1 / 2v2 / 4v4, arenas autogeneradas'
-  printf '%-10s %-12s %s\n' BedWars "$bw" 'mundo requerido: worlds/world'
+  printf '%-10s %-12s %s\n' BedWars "$bw" 'requiere import-bedwars validado'
   printf '%-10s %-12s %s\n' SkyWars "$sw" "$sw_count mapa(s) importado(s)"
   printf '\nHost: %s  IP: %s  Dominio: %s\n' "$PUBLIC_HOST" "${PUBLIC_IP:-?}" "${PUBLIC_DOMAIN:-?}"
 }
@@ -168,8 +171,8 @@ status(){
 verify(){
   local fail=0
   [[ -f "$INSTANCES_DIR/pvp/plugins/nexora-practice.jar" ]] || { warn 'Falta NexoraPractice.'; fail=$((fail+1)); }
-  if [[ -f "$INSTANCES_DIR/bedwars/plugins/silentbedwars.jar" ]]; then
-    [[ -f "$INSTANCES_DIR/bedwars/worlds/world/level.dat" ]] || { warn 'BedWars no tiene mapa world importado.'; fail=$((fail+1)); }
+  if [[ -f "$BEDWARS_READY" ]]; then
+    [[ -f "$INSTANCES_DIR/bedwars/plugins/silentbedwars.jar" && -f "$INSTANCES_DIR/bedwars/worlds/world/level.dat" ]] || { warn 'BedWars está marcado como importado pero faltan plugin o mundo.'; fail=$((fail+1)); }
   fi
   if [[ -f "$INSTANCES_DIR/skywars/plugins/powerskywars.jar" ]]; then
     jq -e '.maps | type=="array"' "$SKY_MANIFEST" >/dev/null || { warn 'Manifiesto SkyWars inválido.'; fail=$((fail+1)); }
@@ -177,7 +180,7 @@ verify(){
       [[ -f "$INSTANCES_DIR/skywars/plugins/PowerSkywars/maps/$name/level.dat" ]] || { warn "Falta mundo SkyWars $name."; fail=$((fail+1)); }
     done < <(jq -r '.maps[].name' "$SKY_MANIFEST")
   fi
-  ((fail == 0)) && ok 'Minijuegos sin bloqueos de configuración.' || die "Se encontraron $fail problema(s) de minijuegos."
+  ((fail == 0)) && ok 'Minijuegos configurados sin inconsistencias.' || die "Se encontraron $fail problema(s) de minijuegos."
 }
 
 case "${1:-status}" in
