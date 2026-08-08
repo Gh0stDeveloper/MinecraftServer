@@ -49,24 +49,38 @@ remove_conflicts(){
   while IFS= read -r conflict; do
     [[ -n "$conflict" ]] || continue
     conflict_item="$(row "$conflict" 2>/dev/null || true)"; [[ -n "$conflict_item" ]] || continue
-    target="$(target_jar "$conflict_item")"; rm -f "$target" "$PLUGIN_STATE/$conflict.ref" "$PLUGIN_STATE/$conflict.sha256"
+    target="$(target_jar "$conflict_item")"; rm -f "$target" "$PLUGIN_STATE/$conflict.ref" "$PLUGIN_STATE/$conflict.api" "$PLUGIN_STATE/$conflict.sha256"
     warn "Conflicto $conflict retirado de $instance."
   done < <(jq -r '.conflicts[]? // empty' <<<"$item")
 }
 install_one(){
-  local id="$1" item instance engine src_type expected target artifact actual_ref
+  local id="$1" item instance engine src_type expected expected_api target artifact actual_ref
   item="$(row "$id")" || die "Plugin desconocido: $id"; instance="$(jq -r '.instance' <<<"$item")"; engine="$(engine_for "$instance")"; [[ "$engine" == pnx ]] || { warn "$id omitido: $instance usa $engine."; return 0; }
-  src_type="$(jq -r '.source_type' <<<"$item")"; expected="$(jq -r '.minecraft' <<<"$item")"; [[ "$expected" == "$PNX_EXPECTED_MINECRAFT" ]] || die "$id está catalogado para $expected, no $PNX_EXPECTED_MINECRAFT."
+  src_type="$(jq -r '.source_type' <<<"$item")"; expected="$(jq -r '.minecraft' <<<"$item")"; expected_api="$(jq -r '.api' <<<"$item")"
+  [[ "$expected" == "$PNX_EXPECTED_MINECRAFT" ]] || die "$id está catalogado para $expected, no $PNX_EXPECTED_MINECRAFT."
+  if [[ "$src_type" == local-maven && "$expected_api" != "$PNX_EXPECTED_VERSION" ]]; then die "$id requiere API PNX $expected_api, runtime esperado $PNX_EXPECTED_VERSION."; fi
   case "$src_type" in local-maven) artifact="$(build_local_maven "$item")"; actual_ref="$(jq -r '.version' <<<"$item")";; git-gradle) artifact="$(build_git_gradle "$item")"; actual_ref="$(jq -r '.ref' <<<"$item")";; *) die "source_type no soportado: $src_type";; esac
-  remove_conflicts "$item"; target="$(target_jar "$item")"; mkdir -p "$(dirname "$target")"; install -m 0644 "$artifact" "$target.tmp"; mv -f "$target.tmp" "$target"; printf '%s\n' "$actual_ref" > "$PLUGIN_STATE/$id.ref"; sha256sum "$target" | awk '{print $1}' > "$PLUGIN_STATE/$id.sha256"; render_internal_config "$id" "$instance"; chown -R bedrock:bedrock "$INSTANCES_DIR/$instance/plugins" "$PLUGIN_STATE"; ok "$id instalado en $instance."
+  remove_conflicts "$item"; target="$(target_jar "$item")"; mkdir -p "$(dirname "$target")"; install -m 0644 "$artifact" "$target.tmp"; mv -f "$target.tmp" "$target"
+  printf '%s\n' "$actual_ref" > "$PLUGIN_STATE/$id.ref"; printf '%s\n' "$expected_api" > "$PLUGIN_STATE/$id.api"; sha256sum "$target" | awk '{print $1}' > "$PLUGIN_STATE/$id.sha256"
+  render_internal_config "$id" "$instance"; chown -R bedrock:bedrock "$INSTANCES_DIR/$instance/plugins" "$PLUGIN_STATE"; ok "$id instalado en $instance (API $expected_api)."
 }
 sync_plugins(){
-  need_tools; local id auto item target wanted installed failures=0
-  while IFS= read -r id; do item="$(row "$id")"; auto="$(jq -r '.auto_install' <<<"$item")"; [[ "$auto" == true ]] || continue; [[ "$(engine_for "$(jq -r '.instance' <<<"$item")")" == pnx ]] || continue; target="$(target_jar "$item")"; if [[ "$(jq -r '.source_type' <<<"$item")" == local-maven ]]; then wanted="$(jq -r '.version' <<<"$item")"; else wanted="$(jq -r '.ref' <<<"$item")"; fi; installed="$(cat "$PLUGIN_STATE/$id.ref" 2>/dev/null || true)"; if [[ ! -f "$target" || "$installed" != "$wanted" ]]; then install_one "$id" || failures=$((failures+1)); else remove_conflicts "$item"; render_internal_config "$id" "$(jq -r '.instance' <<<"$item")"; ok "$id ya está fijado en $wanted."; fi; done < <(jq -r '.plugins[].id' "$CATALOG"); ((failures == 0)) || die "Fallaron $failures plugin(s)."
+  need_tools; local id auto item target wanted installed wanted_api installed_api failures=0
+  while IFS= read -r id; do
+    item="$(row "$id")"; auto="$(jq -r '.auto_install' <<<"$item")"; [[ "$auto" == true ]] || continue; [[ "$(engine_for "$(jq -r '.instance' <<<"$item")")" == pnx ]] || continue
+    target="$(target_jar "$item")"; if [[ "$(jq -r '.source_type' <<<"$item")" == local-maven ]]; then wanted="$(jq -r '.version' <<<"$item")"; else wanted="$(jq -r '.ref' <<<"$item")"; fi
+    wanted_api="$(jq -r '.api' <<<"$item")"; installed="$(cat "$PLUGIN_STATE/$id.ref" 2>/dev/null || true)"; installed_api="$(cat "$PLUGIN_STATE/$id.api" 2>/dev/null || true)"
+    if [[ ! -f "$target" || "$installed" != "$wanted" || "$installed_api" != "$wanted_api" ]]; then install_one "$id" || failures=$((failures+1)); else remove_conflicts "$item"; render_internal_config "$id" "$(jq -r '.instance' <<<"$item")"; ok "$id ya está fijado en $wanted (API $wanted_api)."; fi
+  done < <(jq -r '.plugins[].id' "$CATALOG"); ((failures == 0)) || die "Fallaron $failures plugin(s)."
 }
 doctor(){
-  local id item auto instance target wanted installed fail=0
-  while IFS= read -r id; do item="$(row "$id")"; auto="$(jq -r '.auto_install' <<<"$item")"; [[ "$auto" == true ]] || continue; instance="$(jq -r '.instance' <<<"$item")"; [[ "$(engine_for "$instance")" == pnx ]] || continue; target="$(target_jar "$item")"; if [[ "$(jq -r '.source_type' <<<"$item")" == local-maven ]]; then wanted="$(jq -r '.version' <<<"$item")"; else wanted="$(jq -r '.ref' <<<"$item")"; fi; installed="$(cat "$PLUGIN_STATE/$id.ref" 2>/dev/null || true)"; if [[ -f "$target" && "$installed" == "$wanted" ]]; then ok "$id: instalado ($instance)"; else warn "$id: faltante/desactualizado ($instance, esperado $wanted)."; fail=$((fail+1)); fi; done < <(jq -r '.plugins[].id' "$CATALOG"); return "$fail"
+  local id item auto instance target wanted installed wanted_api installed_api fail=0
+  while IFS= read -r id; do
+    item="$(row "$id")"; auto="$(jq -r '.auto_install' <<<"$item")"; [[ "$auto" == true ]] || continue; instance="$(jq -r '.instance' <<<"$item")"; [[ "$(engine_for "$instance")" == pnx ]] || continue
+    target="$(target_jar "$item")"; if [[ "$(jq -r '.source_type' <<<"$item")" == local-maven ]]; then wanted="$(jq -r '.version' <<<"$item")"; else wanted="$(jq -r '.ref' <<<"$item")"; fi
+    wanted_api="$(jq -r '.api' <<<"$item")"; installed="$(cat "$PLUGIN_STATE/$id.ref" 2>/dev/null || true)"; installed_api="$(cat "$PLUGIN_STATE/$id.api" 2>/dev/null || true)"
+    if [[ -f "$target" && "$installed" == "$wanted" && "$installed_api" == "$wanted_api" ]]; then ok "$id: instalado ($instance, API $wanted_api)"; else warn "$id: faltante/desactualizado ($instance, esperado $wanted / API $wanted_api)."; fail=$((fail+1)); fi
+  done < <(jq -r '.plugins[].id' "$CATALOG"); return "$fail"
 }
 list_plugins(){ printf '\n%-20s %-10s %-9s %-16s %s\n' PLUGIN INSTANCIA AUTO LICENCIA REF; jq -r '.plugins[] | [.id,.instance,(.auto_install|tostring),.license,(.ref // .version)] | @tsv' "$CATALOG" | while IFS=$'\t' read -r a b c d e; do printf '%-20s %-10s %-9s %-16s %s\n' "$a" "$b" "$c" "$d" "$e"; done; }
 case "${1:-list}" in list) list_plugins;; sync) sync_plugins;; install) [[ $# -eq 2 ]] || { usage; exit 1; }; need_tools; install_one "$2";; doctor) doctor;; *) usage; exit 1;; esac
