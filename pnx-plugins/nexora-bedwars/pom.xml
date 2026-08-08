@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>dev.gh0stdeveloper.minecraft</groupId>
+  <artifactId>nexora-bedwars</artifactId>
+  <version>0.1.0</version>
+  <properties>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+  <repositories>
+    <repository><id>central</id><url>https://repo.maven.apache.org/maven2/</url></repository>
+    <repository><id>jitpack.io</id><url>https://www.jitpack.io</url></repository>
+    <repository><id>opencollab-releases</id><url>https://repo.opencollab.dev/maven-releases</url></repository>
+    <repository><id>opencollab-snapshots</id><url>https://repo.opencollab.dev/maven-snapshots</url></repository>
+    <repository><id>powernukkitx-releases</id><url>https://repo.powernukkitx.org/releases</url></repository>
+  </repositories>
+  <dependencies>
+    <dependency>
+      <groupId>org.powernukkitx</groupId>
+      <artifactId>server</artifactId>
+      <version>2.0.0-SNAPSHOT</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+  <build>
+    <finalName>nexora-bedwars-0.1.0</finalName>
+    <resources><resource><directory>src/main/resources</directory></resource></resources>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+      </plugin>
+    </plugins>
+  </build>
+</project>
