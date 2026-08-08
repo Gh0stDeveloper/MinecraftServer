@@ -17,6 +17,12 @@ def validate_instances():
         p=ROOT/"instances"/instance/"server.properties"; assert p.is_file(),f"Missing {p}"; d=props(p); assert d.get("server-port")==port; assert d.get("online-mode")=="true"
     s=props(ROOT/"instances/survival"/"server.properties")
     for k,v in {"gamemode":"survival","force-gamemode":"false","allow-cheats":"false","online-mode":"true","allow-list":"true","level-name":"SurvivalWorld"}.items(): assert s.get(k)==v,f"survival {k}"
+    b=props(ROOT/"instances/bedwars"/"server.properties"); assert b.get("level-name")=="world","SilentBedwars upstream requires level 'world'"
+def validate_deployment():
+    n=env(ROOT/"config"/"network.env")
+    assert n.get("PUBLIC_IP")=="147.224.196.17"
+    assert n.get("PUBLIC_DOMAIN")=="minecraftserver.duckdns.org"
+    assert n.get("PUBLIC_HOST")=="147.224.196.17","IP must remain fallback until DNS is verified"
 def validate_engines():
     e=env(ROOT/"config"/"engines.env"); assert e.get("LOBBY_ENGINE")=="bds"; assert e.get("SURVIVAL_ENGINE")=="bds"
     for k in ("PVP_ENGINE","BEDWARS_ENGINE","SKYWARS_ENGINE"): assert e.get(k)=="pnx",f"{k} must default to pnx"
@@ -35,13 +41,17 @@ def validate_plugins():
     for item in catalog["plugins"]:
         assert item["id"] not in ids; ids.add(item["id"]); assert item["instance"] in expected; assert item["minecraft"]=="26.40"; assert item["api"]=="2.0.0"; found[item["instance"]]=item["id"]
         if item["source_type"]=="git-gradle": assert item["source"].startswith("https://github.com/"); assert len(item["ref"])==40; assert item["redistribute"] is False
-        elif item["source_type"]=="local-maven": assert (ROOT/item["source"]/"pom.xml").is_file()
+        elif item["source_type"]=="local-maven":
+            assert (ROOT/item["source"]/"pom.xml").is_file()
+            assert item["version"]=="0.2.0"
+            assert item["artifact"].endswith("nexora-practice-0.2.0.jar")
         else: raise AssertionError(item["source_type"])
     assert found==expected,found; assert not list(ROOT.glob("instances/*/plugins/*.jar")),"Plugin binaries must not be committed"
 def validate_survival_isolation():
     s=ROOT/"instances"/"survival"; forbidden=[s/"behavior_packs",s/"plugins",s/"pnx.yml",s/"world_behavior_packs.json"]
     for p in forbidden: assert not p.exists(),f"Survival must remain isolated: {p}"
 def validate_required_files():
-    for rel in ["mcserver","scripts/launch-instance.sh","scripts/update-pnx.sh","scripts/engine-manager.sh","scripts/plugin-manager.sh","systemd/bedrock@.service","pnx-plugins/nexora-practice/src/main/resources/plugin.yml"]: assert (ROOT/rel).is_file(),rel
-def main(): validate_instances(); validate_engines(); validate_json(); validate_manifests(); validate_plugins(); validate_survival_isolation(); validate_required_files(); print("All hybrid BedrockNetwork checks passed.")
+    required=["mcserver","scripts/launch-instance.sh","scripts/update-pnx.sh","scripts/engine-manager.sh","scripts/plugin-manager.sh","scripts/minigame-manager.sh","scripts/network-manager.sh","systemd/bedrock@.service","pnx-plugins/nexora-practice/src/main/resources/plugin.yml"]
+    for rel in required: assert (ROOT/rel).is_file(),rel
+def main(): validate_instances(); validate_deployment(); validate_engines(); validate_json(); validate_manifests(); validate_plugins(); validate_survival_isolation(); validate_required_files(); print("All playable BedrockNetwork checks passed.")
 if __name__=="__main__": main()
