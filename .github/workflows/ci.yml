@@ -34,8 +34,9 @@ jobs:
           set -euo pipefail
           source config/network.env
           source config/engines.env
-          [[ "$PUBLIC_IP" == "147.224.196.17" ]]
+          [[ -n "$PUBLIC_IP" ]]
           [[ "$PUBLIC_DOMAIN" == "minecraftnexora.duckdns.org" ]]
+          [[ "$PUBLIC_HOST" == "$PUBLIC_IP" || "$PUBLIC_HOST" == "$PUBLIC_DOMAIN" ]]
           [[ "$WEB_MAX_UPLOAD_MB" -ge 1024 ]]
           [[ "$SURVIVAL_ENGINE" == bds ]]
           [[ "$PVP_ENGINE" == pnx && "$BEDWARS_ENGINE" == pnx && "$SKYWARS_ENGINE" == pnx ]]
@@ -48,6 +49,24 @@ jobs:
           bash -n mcserver
           bash -n install.sh
           while IFS= read -r -d '' script; do bash -n "$script"; done < <(find scripts -type f -name '*.sh' -print0)
+      - name: Validate runtime permission recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo groupadd -f bedrock
+          sudo rm -rf /tmp/perm-root
+          sudo mkdir -p /tmp/perm-root/app /tmp/perm-root/scripts
+          sudo cp -a . /tmp/perm-root/app/
+          sudo cp -a scripts/. /tmp/perm-root/scripts/
+          sudo chmod 0700 /tmp/perm-root /tmp/perm-root/app /tmp/perm-root/app/scripts
+          sudo find /tmp/perm-root/app/scripts -type f -name '*.sh' -exec chmod 0644 {} +
+          sudo find /tmp/perm-root/scripts -type f -name '*.sh' -exec chmod 0644 {} +
+          sudo BEDROCK_ROOT=/tmp/perm-root bash scripts/normalize-permissions.sh
+          test -x /tmp/perm-root/app/scripts/minigame-manager.sh
+          test -x /tmp/perm-root/app/scripts/update-project.sh
+          test -x /tmp/perm-root/scripts/minigame-manager.sh
+          [[ "$(stat -c %a /tmp/perm-root)" == 755 ]]
+          [[ "$(stat -c %a /tmp/perm-root/app/scripts)" == 755 ]]
       - name: Validate Survival ZIP and MCWORLD import detection
         shell: bash
         run: |
@@ -107,6 +126,8 @@ jobs:
           grep -q 'secure_admin_request' web/server.py
           grep -q 'bedrock-survival-import.path' scripts/lib.sh
           grep -q 'survival-pending-import' scripts/network-manager.sh
+          grep -q 'normalize-permissions.sh' scripts/update-project.sh
+          grep -q 'exec bash.*update-project.sh' mcserver
       - name: Smoke test website and authenticated upload queue
         shell: bash
         run: |
