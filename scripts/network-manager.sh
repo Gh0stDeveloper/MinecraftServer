@@ -5,6 +5,7 @@ source "$SCRIPT_DIR/lib.sh"
 source "$SCRIPT_DIR/socket-check.sh"
 require_root
 source_config
+source_engines
 
 usage(){ cat <<'HELP'
 Uso:
@@ -19,10 +20,19 @@ HELP
 
 resolved_ipv4(){ getent ahostsv4 "$1" 2>/dev/null | awk '{print $1}' | sort -u; }
 domain_ok(){ [[ -n "${PUBLIC_DOMAIN:-}" && -n "${PUBLIC_IP:-}" ]] && resolved_ipv4 "$PUBLIC_DOMAIN" | grep -Fxq "$PUBLIC_IP"; }
+bds_lan_discovery_disabled(){
+  local instance="$1" file="$INSTANCES_DIR/$1/server.properties"
+  [[ "$(engine_for "$instance")" == bds && -f "$file" ]] || return 1
+  grep -Eq '^enable-lan-visibility=false([[:space:]]*)$' "$file"
+}
 bedrock_probe(){
-  local port="$1" probe="$APP_DIR/scripts/bedrock-ping.py"
+  local instance="$1" port="$2" probe="$APP_DIR/scripts/bedrock-ping.py"
   [[ -f "$probe" ]] || probe="$SCRIPT_DIR/bedrock-ping.py"
-  python3 "$probe" "$port" >/dev/null
+  if bds_lan_discovery_disabled "$instance"; then
+    python3 "$probe" "$port" --allow-bare >/dev/null
+  else
+    python3 "$probe" "$port" >/dev/null
+  fi
 }
 
 apply_host(){
@@ -70,10 +80,14 @@ verify(){
     fi
     if udp_port_listening "$port"; then
       ok "UDP/$port escuchando ($instance)"
-      if bedrock_probe "$port"; then
-        ok "UDP/$port responde con anuncio Bedrock/RakNet completo ($instance)"
+      if bedrock_probe "$instance" "$port"; then
+        if bds_lan_discovery_disabled "$instance"; then
+          ok "UDP/$port responde por RakNet ($instance; anuncio LAN desactivado intencionalmente)"
+        else
+          ok "UDP/$port responde con anuncio Bedrock/RakNet completo ($instance)"
+        fi
       else
-        warn "UDP/$port escucha, pero el pong Bedrock/RakNet está incompleto ($instance). En BDS verifica transport=raknet."
+        warn "UDP/$port escucha, pero no respondió correctamente al ping Bedrock/RakNet ($instance)."
         fail=$((fail+1))
       fi
     else
