@@ -40,6 +40,13 @@ resolve_world(){
   esac
   command -v unzip >/dev/null || { echo "ERROR: falta unzip." >&2; exit 1; }
 
+  # Validar primero la estructura ZIP central. Esto evita mensajes duplicados de
+  # zipinfo/unzip y falla antes de crear temporales o tocar Survival.
+  if ! unzip -tqq "$input" >/dev/null 2>&1; then
+    echo "ERROR: el archivo no es un ZIP/.mcworld válido. Puede estar corrupto, incompleto, dividido en varias partes o ser un .7z/.rar renombrado como .zip." >&2
+    exit 1
+  fi
+
   # Rechazar rutas absolutas o traversal antes de extraer un archivo recibido del teléfono.
   if unzip -Z1 "$input" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
     echo "ERROR: el archivo contiene rutas inseguras." >&2
