@@ -23,7 +23,8 @@ def validate_instances():
     for instance in ("lobby","survival"):
         d=props(ROOT/"instances"/instance/"server.properties")
         assert d.get("transport")=="raknet",(instance,d.get("transport"))
-        assert d.get("enable-lan-visibility")=="false",(instance,d.get("enable-lan-visibility"))
+    assert props(ROOT/"instances"/"lobby"/"server.properties").get("enable-lan-visibility")=="true"
+    assert props(ROOT/"instances"/"survival"/"server.properties").get("enable-lan-visibility")=="false"
     s=props(ROOT/"instances"/"survival"/"server.properties")
     for k,v in {"gamemode":"survival","force-gamemode":"false","allow-cheats":"false","online-mode":"true","allow-list":"true","level-name":"SurvivalWorld"}.items(): assert s.get(k)==v
     assert int(props(ROOT/"instances"/"skywars"/"server.properties").get("max-players","0"))>=16
@@ -42,6 +43,20 @@ def validate_engines():
     for k in ("PVP_ENGINE","BEDWARS_ENGINE","SKYWARS_ENGINE"): assert e.get(k)=="pnx"
     assert e.get("PNX_EXPECTED_VERSION")=="3.0.2"; assert e.get("PNX_EXPECTED_MINECRAFT")=="26.40"; assert int(e.get("PNX_JAVA_MIN","0"))>=21
     assert e.get("PNX_SOURCE_REPO")=="https://github.com/PowerNukkitX/PowerNukkitX.git"; assert re.fullmatch(r"[0-9a-f]{40}",e.get("PNX_SOURCE_REF",""))
+def validate_pnx_managed_config():
+    text=(ROOT/"scripts"/"engine-manager.sh").read_text(encoding="utf-8")
+    assert 'rm -f "$target/nukkit.yml"' in text
+    assert '  port: $port' in text
+    assert '  defaultLevelName: "$level"' in text
+    assert 'config:\n  version: "3.0.0"' in text
+    gameplay=text.split('gameplay-settings:',1)[1].split('config:',1)[0]
+    assert 'allowBeta: false' in gameplay
+    assert 'enableRedstone: true' in gameplay
+    assert 'tickRedstone: true' in gameplay
+    debug=text.split('debug-settings:',1)[1].split('level-settings:',1)[0]
+    level=text.split('level-settings:',1)[1].split('chunk-settings:',1)[0]
+    assert 'allowBeta:' not in debug
+    assert 'enableRedstone:' not in level and 'tickRedstone:' not in level
 def validate_json():
     for p in ROOT.rglob("*.json"):
         if any(part in {"target","build"} for part in p.parts): continue
@@ -93,5 +108,5 @@ def validate_runtime_regressions():
     subprocess.run(["bash",str(ROOT/"tests"/"test_socket_check.sh")],check=True,cwd=ROOT)
     subprocess.run(["sudo","bash",str(ROOT/"tests"/"test_lobby_addon_permissions.sh")],check=True,cwd=ROOT)
 def main():
-    validate_instances(); validate_deployment(); validate_public_docs(); validate_engines(); validate_json(); validate_manifests(); validate_plugins(); validate_survival_isolation(); validate_required_files(); validate_empty_service_state(); validate_bds_downloader(); validate_pnx_source_pin(); validate_pnx_jar_validator(); validate_runtime_regressions(); print("All native-minigame BedrockNetwork checks passed.")
+    validate_instances(); validate_deployment(); validate_public_docs(); validate_engines(); validate_pnx_managed_config(); validate_json(); validate_manifests(); validate_plugins(); validate_survival_isolation(); validate_required_files(); validate_empty_service_state(); validate_bds_downloader(); validate_pnx_source_pin(); validate_pnx_jar_validator(); validate_runtime_regressions(); print("All native-minigame BedrockNetwork checks passed.")
 if __name__=="__main__": main()
