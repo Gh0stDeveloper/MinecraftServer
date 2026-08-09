@@ -28,15 +28,24 @@ set_server_property(){
 }
 
 ensure_bds_raknet(){
-  local instance file
-  for instance in lobby survival; do
-    file="$INSTANCES_DIR/$instance/server.properties"
-    [[ -f "$file" ]] || continue
+  local file
+
+  file="$INSTANCES_DIR/lobby/server.properties"
+  if [[ -f "$file" ]]; then
     set_server_property "$file" transport raknet
-    # La visibilidad LAN queda desactivada porque hay más de un BDS en la misma VPS.
-    # En BDS recientes el transporte se fuerza por separado con transport=raknet.
+    # El Lobby usa el puerto Bedrock estándar 19132 y debe devolver el anuncio
+    # MCPE del Unconnected Pong. Desactivar esta opción deja un pong RakNet
+    # desnudo en BDS recientes y hace que el servidor aparezca como no disponible.
+    set_server_property "$file" enable-lan-visibility true
+  fi
+
+  file="$INSTANCES_DIR/survival/server.properties"
+  if [[ -f "$file" ]]; then
+    set_server_property "$file" transport raknet
+    # Survival usa un puerto no estándar. Aquí sí desactivamos el listener LAN
+    # adicional para que BDS no intente enlazar también 19132/19133.
     set_server_property "$file" enable-lan-visibility false
-  done
+  fi
 }
 
 wait_udp(){
