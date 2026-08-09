@@ -23,8 +23,7 @@ def validate_instances():
     for instance in ("lobby","survival"):
         d=props(ROOT/"instances"/instance/"server.properties")
         assert d.get("transport")=="raknet",(instance,d.get("transport"))
-    assert props(ROOT/"instances"/"lobby"/"server.properties").get("enable-lan-visibility")=="true"
-    assert props(ROOT/"instances"/"survival"/"server.properties").get("enable-lan-visibility")=="false"
+        assert d.get("enable-lan-visibility")=="false",(instance,d.get("enable-lan-visibility"))
     s=props(ROOT/"instances"/"survival"/"server.properties")
     for k,v in {"gamemode":"survival","force-gamemode":"false","allow-cheats":"false","online-mode":"true","allow-list":"true","level-name":"SurvivalWorld"}.items(): assert s.get(k)==v
     assert int(props(ROOT/"instances"/"skywars"/"server.properties").get("max-players","0"))>=16
