@@ -19,6 +19,11 @@ HELP
 
 resolved_ipv4(){ getent ahostsv4 "$1" 2>/dev/null | awk '{print $1}' | sort -u; }
 domain_ok(){ [[ -n "${PUBLIC_DOMAIN:-}" && -n "${PUBLIC_IP:-}" ]] && resolved_ipv4 "$PUBLIC_DOMAIN" | grep -Fxq "$PUBLIC_IP"; }
+bedrock_probe(){
+  local port="$1" probe="$APP_DIR/scripts/bedrock-ping.py"
+  [[ -f "$probe" ]] || probe="$SCRIPT_DIR/bedrock-ping.py"
+  python3 "$probe" "$port" >/dev/null
+}
 
 apply_host(){
   local host="$1" level was_active=0
@@ -65,6 +70,12 @@ verify(){
     fi
     if udp_port_listening "$port"; then
       ok "UDP/$port escuchando ($instance)"
+      if bedrock_probe "$port"; then
+        ok "UDP/$port responde con anuncio Bedrock/RakNet completo ($instance)"
+      else
+        warn "UDP/$port escucha, pero el pong Bedrock/RakNet está incompleto ($instance). En BDS verifica transport=raknet."
+        fail=$((fail+1))
+      fi
     else
       state="$(service_state "$instance")"
       warn "UDP/$port no está escuchando ($instance; servicio=$state). Revisa: sudo mcserver logs $instance"

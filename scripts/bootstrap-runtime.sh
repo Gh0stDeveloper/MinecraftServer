@@ -17,6 +17,28 @@ ensure_dependencies(){
   fi
 }
 
+set_server_property(){
+  local file="$1" key="$2" value="$3"
+  [[ -f "$file" ]] || return 0
+  if grep -q "^${key}=" "$file"; then
+    sed -i "s|^${key}=.*|${key}=${value}|" "$file"
+  else
+    printf '\n%s=%s\n' "$key" "$value" >> "$file"
+  fi
+}
+
+ensure_bds_raknet(){
+  local instance file
+  for instance in lobby survival; do
+    file="$INSTANCES_DIR/$instance/server.properties"
+    [[ -f "$file" ]] || continue
+    set_server_property "$file" transport raknet
+    # La visibilidad LAN queda desactivada porque hay más de un BDS en la misma VPS.
+    # En BDS recientes el transporte se fuerza por separado con transport=raknet.
+    set_server_property "$file" enable-lan-visibility false
+  done
+}
+
 wait_udp(){
   local instance="$1" port="$2" tries=0 state
   while ((tries < 45)); do
@@ -62,6 +84,7 @@ ui_run_task "Aplicando firewall local" bash "$APP_DIR/scripts/firewall-manager.s
 
 ui_section "Runtimes"
 bash "$APP_DIR/scripts/update-bds.sh" latest
+ui_run_task "Forzando transporte RakNet en BDS" ensure_bds_raknet
 bash "$APP_DIR/scripts/update-pnx.sh" latest
 ui_run_task "Preparando instancias PowerNukkitX" bash "$APP_DIR/scripts/engine-manager.sh" prepare
 
