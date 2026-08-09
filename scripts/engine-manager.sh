@@ -42,9 +42,16 @@ prepare_pnx(){
   mkdir -p "$target/plugins" "$target/worlds"
   install -m 0644 "$template" "$target/server.properties"
 
-  # PowerNukkitX 3.x toma los valores de red y nivel desde pnx.yml. La antigua
-  # configuración solo definía language y dejaba port/defaultLevelName en sus
-  # defaults (19132/world), provocando colisión con el Lobby.
+  # PNX 3 ejecuta una conversión de configuración legacy antes de cargar pnx.yml
+  # siempre que encuentre juntos nukkit.yml y server.properties. Las instancias
+  # Nexora son administradas directamente con pnx.yml; retirar nukkit.yml evita
+  # que un residuo de una instalación PNX antigua regenere la configuración y
+  # restaure settings.port al valor por defecto 19132 durante el primer arranque.
+  rm -f "$target/nukkit.yml"
+
+  # Este archivo usa exclusivamente claves de la API de configuración PNX 3.0.2.
+  # server.properties se conserva como espejo para diagnósticos, pero PNX 3.x
+  # obtiene puerto, MOTD y nivel desde settings.* de pnx.yml.
   cat > "$target/pnx.yml" <<YAML
 settings:
   ip: 0.0.0.0
@@ -73,14 +80,11 @@ debug-settings:
   level: INFO
   command: false
   ignoredPackets: []
-  allowBeta: false
 level-settings:
   autoTickRate: true
   autoTickRateLimit: 20
   baseTickRate: 1
   alwaysTickPlayers: false
-  enableRedstone: true
-  tickRedstone: true
   chunkUnloadDelay: 15000
   levelThread: false
 chunk-settings:
@@ -99,6 +103,11 @@ player-settings:
   spawnRadius: 16
 gameplay-settings:
   enableCommandBlocks: true
+  allowBeta: false
+  enableRedstone: true
+  tickRedstone: true
+config:
+  version: "3.0.0"
 YAML
   chown -R bedrock:bedrock "$target"
   ok "$instance preparado para PNX en UDP/$port (nivel $level)"

@@ -16,15 +16,20 @@ def fail(message: str) -> int:
 
 
 def main() -> int:
-    if len(sys.argv) not in {2, 3}:
-        return fail(f"Uso: {sys.argv[0]} PUERTO [HOST]")
+    args = list(sys.argv[1:])
+    allow_bare = False
+    if "--allow-bare" in args:
+        args.remove("--allow-bare")
+        allow_bare = True
+    if len(args) not in {1, 2}:
+        return fail(f"Uso: {sys.argv[0]} PUERTO [HOST] [--allow-bare]")
     try:
-        port = int(sys.argv[1])
+        port = int(args[0])
     except ValueError:
         return fail("Puerto inválido.")
     if not 1 <= port <= 65535:
         return fail("Puerto fuera de rango.")
-    host = sys.argv[2] if len(sys.argv) == 3 else "127.0.0.1"
+    host = args[1] if len(args) == 2 else "127.0.0.1"
 
     sent = int(time.time() * 1000)
     packet = b"\x01" + struct.pack(">Q", sent) + MAGIC + struct.pack(">Q", CLIENT_GUID)
@@ -40,6 +45,14 @@ def main() -> int:
 
     if not data or data[0] != 0x1C:
         return fail(f"UDP/{port} respondió, pero no con Unconnected Pong RakNet (0x1c).")
+
+    # Con enable-lan-visibility=false, BDS puede contestar al ping dirigido con
+    # el encabezado RakNet de 33 bytes y omitir deliberadamente la cadena MCPE.
+    # Ese estado demuestra que el transporte RakNet está vivo; solo se acepta
+    # cuando el llamador lo solicita explícitamente para una instancia BDS.
+    if len(data) == 33 and allow_bare:
+        print("RAKNET;bare")
+        return 0
     if len(data) < 35:
         return fail(
             f"UDP/{port} devolvió un pong RakNet incompleto de {len(data)} bytes; "

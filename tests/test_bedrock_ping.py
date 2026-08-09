@@ -13,7 +13,7 @@ PROBE = ROOT / "scripts" / "bedrock-ping.py"
 MAGIC = bytes.fromhex("00ffff00fefefefefdfdfdfd12345678")
 
 
-def run_probe(response_factory):
+def run_probe(response_factory, *extra_args: str):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("127.0.0.1", 0))
     port = sock.getsockname()[1]
@@ -28,7 +28,7 @@ def run_probe(response_factory):
     thread = threading.Thread(target=server, daemon=True)
     thread.start()
     result = subprocess.run(
-        [sys.executable, str(PROBE), str(port)],
+        [sys.executable, str(PROBE), str(port), *extra_args],
         cwd=ROOT,
         text=True,
         capture_output=True,
@@ -54,6 +54,10 @@ def main() -> None:
     assert bare.returncode != 0
     assert "33 bytes" in bare.stderr
     assert "falta el anuncio Bedrock MCPE" in bare.stderr
+
+    allowed_bare = run_probe(pong_prefix, "--allow-bare")
+    assert allowed_bare.returncode == 0, allowed_bare.stderr
+    assert allowed_bare.stdout.strip() == "RAKNET;bare"
 
     print("Bedrock RakNet advertisement probe regression passed.")
 
