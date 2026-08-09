@@ -99,11 +99,16 @@ jobs:
                       if p.is_file(): z.write(p, Path('MiMundo')/p.relative_to(root))
           with zipfile.ZipFile('/tmp/unsafe.zip','w') as z:
               z.writestr('../evil','x')
+          Path('/tmp/not-a-zip.zip').write_bytes(b'fake-zip-body')
           PY
           bash scripts/import-survival.sh --check /tmp/MiMundo.zip
           bash scripts/import-survival.sh --check /tmp/MiMundo.mcworld
           if bash scripts/import-survival.sh --check /tmp/unsafe.zip; then
             echo 'Unsafe archive was accepted' >&2
+            exit 1
+          fi
+          if bash scripts/import-survival.sh --check /tmp/not-a-zip.zip; then
+            echo 'Invalid ZIP was accepted' >&2
             exit 1
           fi
       - name: Validate JavaScript syntax
@@ -186,7 +191,23 @@ jobs:
           code="$(curl -sS -o /tmp/noauth.json -w '%{http_code}' http://127.0.0.1:18080/api/admin/check)"
           [[ "$code" == 401 ]]
           curl -fsS -H "X-Admin-Token: $token" http://127.0.0.1:18080/api/admin/check | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d["ok"] is True and d["max_upload_mb"]==16'
-          printf 'fake-zip-body' >/tmp/Survival.zip
+
+          printf 'fake-zip-body' >/tmp/Invalid.zip
+          code="$(curl -sS -o /tmp/invalid-upload.json -w '%{http_code}' -X POST -H "X-Admin-Token: $token" -H 'X-Filename: Invalid.zip' -H 'Content-Type: application/octet-stream' --data-binary @/tmp/Invalid.zip http://127.0.0.1:18080/api/admin/survival/upload)"
+          [[ "$code" == 422 ]]
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/invalid-upload.json'))
+          assert d['ok'] is False
+          assert 'ZIP' in d['error']
+          PY
+
+          python3 - <<'PY'
+          import zipfile
+          with zipfile.ZipFile('/tmp/Survival.zip','w',zipfile.ZIP_DEFLATED) as z:
+              z.writestr('Survival/level.dat',b'bedrock-test')
+              z.writestr('Survival/db/000001.ldb',b'test')
+          PY
           curl -fsS -X POST -H "X-Admin-Token: $token" -H 'X-Filename: Survival.zip' -H 'Content-Type: application/octet-stream' --data-binary @/tmp/Survival.zip http://127.0.0.1:18080/api/admin/survival/upload >/tmp/upload.json
           python3 - <<'PY'
           import json
