@@ -20,6 +20,10 @@ def env(path:Path)->dict[str,str]: return {k:v.strip('"').strip("'") for k,v in 
 def validate_instances():
     for instance,port in EXPECTED_PORTS.items():
         d=props(ROOT/"instances"/instance/"server.properties"); assert d.get("server-port")==port; assert d.get("online-mode")=="true"
+    for instance in ("lobby","survival"):
+        d=props(ROOT/"instances"/instance/"server.properties")
+        assert d.get("transport")=="raknet",(instance,d.get("transport"))
+        assert d.get("enable-lan-visibility")=="false",(instance,d.get("enable-lan-visibility"))
     s=props(ROOT/"instances"/"survival"/"server.properties")
     for k,v in {"gamemode":"survival","force-gamemode":"false","allow-cheats":"false","online-mode":"true","allow-list":"true","level-name":"SurvivalWorld"}.items(): assert s.get(k)==v
     assert int(props(ROOT/"instances"/"skywars"/"server.properties").get("max-players","0"))>=16
@@ -72,7 +76,7 @@ def validate_survival_isolation():
     s=ROOT/"instances"/"survival"
     for p in [s/"behavior_packs",s/"plugins",s/"pnx.yml",s/"world_behavior_packs.json"]: assert not p.exists()
 def validate_required_files():
-    required=["mcserver","scripts/ui.sh","scripts/socket-check.sh","scripts/launch-instance.sh","scripts/update-pnx.sh","scripts/pnx-jar-validator.py","scripts/bds-downloader.py","scripts/engine-manager.sh","scripts/plugin-manager.sh","scripts/minigame-manager.sh","scripts/network-manager.sh","scripts/install-addon.sh","scripts/normalize-permissions.sh","scripts/bootstrap-runtime.sh","scripts/firewall-manager.sh","tests/test_pnx_source_pin.py","tests/test_pnx_jar_validator.py","tests/test_socket_check.sh","tests/test_lobby_addon_permissions.sh","docs/README.md","systemd/bedrock@.service","pnx-plugins/nexora-practice/src/main/resources/plugin.yml","pnx-plugins/nexora-bedwars/src/main/resources/plugin.yml","pnx-plugins/nexora-skywars/src/main/resources/plugin.yml"]
+    required=["mcserver","scripts/ui.sh","scripts/socket-check.sh","scripts/bedrock-ping.py","scripts/launch-instance.sh","scripts/update-pnx.sh","scripts/pnx-jar-validator.py","scripts/bds-downloader.py","scripts/engine-manager.sh","scripts/plugin-manager.sh","scripts/minigame-manager.sh","scripts/network-manager.sh","scripts/install-addon.sh","scripts/normalize-permissions.sh","scripts/bootstrap-runtime.sh","scripts/firewall-manager.sh","tests/test_bedrock_ping.py","tests/test_pnx_source_pin.py","tests/test_pnx_jar_validator.py","tests/test_socket_check.sh","tests/test_lobby_addon_permissions.sh","docs/README.md","systemd/bedrock@.service","pnx-plugins/nexora-practice/src/main/resources/plugin.yml","pnx-plugins/nexora-bedwars/src/main/resources/plugin.yml","pnx-plugins/nexora-skywars/src/main/resources/plugin.yml"]
     for rel in required: assert (ROOT/rel).is_file(),rel
 def validate_empty_service_state():
     with tempfile.TemporaryDirectory() as td:
@@ -85,6 +89,7 @@ def validate_bds_downloader(): subprocess.run([os.environ.get("PYTHON","python3"
 def validate_pnx_source_pin(): subprocess.run([os.environ.get("PYTHON","python3"),str(ROOT/"tests"/"test_pnx_source_pin.py")],check=True,cwd=ROOT)
 def validate_pnx_jar_validator(): subprocess.run([os.environ.get("PYTHON","python3"),str(ROOT/"tests"/"test_pnx_jar_validator.py")],check=True,cwd=ROOT)
 def validate_runtime_regressions():
+    subprocess.run([os.environ.get("PYTHON","python3"),str(ROOT/"tests"/"test_bedrock_ping.py")],check=True,cwd=ROOT)
     subprocess.run(["bash",str(ROOT/"tests"/"test_socket_check.sh")],check=True,cwd=ROOT)
     subprocess.run(["sudo","bash",str(ROOT/"tests"/"test_lobby_addon_permissions.sh")],check=True,cwd=ROOT)
 def main():
