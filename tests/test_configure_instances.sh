@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Los scripts de instalación deben seguir rechazando ejecuciones sin root. En
+# CI se prueba esa misma ruta elevando únicamente este test; los runners de
+# GitHub ofrecen sudo sin contraseña. No se añade ningún bypass al código que
+# se ejecuta en producción.
+if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+  command -v sudo >/dev/null 2>&1 || {
+    echo "test_configure_instances.sh requiere root o sudo sin contraseña" >&2
+    exit 1
+  }
+  exec sudo -n bash "$0" "$@"
+fi
+
 TEST_ROOT="$(mktemp -d /tmp/nexora-instance-migration.XXXXXX)"
 trap 'rm -rf "$TEST_ROOT"' EXIT
 
