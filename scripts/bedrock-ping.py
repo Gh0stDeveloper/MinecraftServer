@@ -66,7 +66,9 @@ def main() -> int:
         max_players = int(fields[5])
     except (IndexError, ValueError):
         return fail(f"UDP/{port} anunció MCPE, pero sus campos obligatorios son inválidos: {advertisement!r}")
-    if protocol <= 0 or not fields[1].strip() or not fields[3].strip() or players < 0 or max_players <= 0:
+    # PowerNukkitX 3.0.2 may leave fields[3] (display version) empty while the
+    # numeric protocol and the rest of the advertisement remain valid.
+    if protocol <= 0 or not fields[1].strip() or players < 0 or max_players <= 0:
         return fail(f"UDP/{port} anunció MCPE con metadatos no utilizables: {advertisement!r}")
 
     print(advertisement)

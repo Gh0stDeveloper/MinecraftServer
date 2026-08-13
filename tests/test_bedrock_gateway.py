@@ -78,7 +78,10 @@ def main() -> None:
         if candidate not in ports:
             ports.append(candidate)
     lobby_public, survival_public, lobby_backend, survival_backend, pnx_port = ports
-    pnx_ad = f"MCPE;PNX source;999;1.26.40;0;20;1;PNX;Adventure;2;{pnx_port};{pnx_port};".encode()
+    # PowerNukkitX 3.0.2 at the pinned source ref advertises protocol 2168 but
+    # leaves the display version field empty. The gateway must still learn the
+    # protocol and use the installed BDS version for its public advertisement.
+    pnx_ad = f"MCPE;PNX source;2168;;0;20;1;PNX;Survival;1;{pnx_port};{pnx_port};".encode()
     servers = [
         FakeRakNet(lobby_backend, label=b"lobby"),
         FakeRakNet(survival_backend, label=b"survival"),
@@ -132,10 +135,10 @@ GATEWAY_MAX_SESSIONS=64
                     break
                 time.sleep(0.1)
             assert result is not None and result.returncode == 0, result.stderr
-            assert result.stdout.startswith("MCPE;Nexora Test | Lobby;999;1.26.43.1;")
+            assert result.stdout.startswith("MCPE;Nexora Test | Lobby;2168;1.26.43.1;")
             assert ";Una red Bedrock de prueba;Adventure;2;" in result.stdout
             cached = json.loads((base / "state" / "gateway-compatibility.json").read_text(encoding="utf-8"))
-            assert cached == {"protocol": 999}
+            assert cached == {"protocol": 2168}
 
             survival = subprocess.run(
                 [sys.executable, str(PROBE), str(survival_public)],
@@ -145,7 +148,7 @@ GATEWAY_MAX_SESSIONS=64
                 timeout=3,
             )
             assert survival.returncode == 0, survival.stderr
-            assert "MCPE;Nexora Test | Survival;999;1.26.43.1;" in survival.stdout
+            assert "MCPE;Nexora Test | Survival;2168;1.26.43.1;" in survival.stdout
 
             client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             client.settimeout(2)

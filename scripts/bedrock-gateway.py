@@ -72,7 +72,7 @@ def read_bds_version() -> str | None:
     return value if value and value.lower() != "none" else None
 
 
-def query_mcpe(port: int, timeout: float = 0.25) -> tuple[int, str] | None:
+def query_mcpe(port: int, timeout: float = 0.25) -> tuple[int, str | None] | None:
     sent = int(time.time() * 1000)
     packet = b"\x01" + struct.pack(">Q", sent) + MAGIC + struct.pack(">Q", CLIENT_GUID)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -90,10 +90,14 @@ def query_mcpe(port: int, timeout: float = 0.25) -> tuple[int, str] | None:
         length = struct.unpack(">H", data[33:35])[0]
         fields = data[35 : 35 + length].decode("utf-8", errors="replace").split(";")
         protocol = int(fields[2])
-        version = fields[3].strip()
+        version = fields[3].strip() or None
     except (IndexError, ValueError, struct.error):
         return None
-    if not fields or fields[0] != "MCPE" or protocol <= 0 or not version:
+    # PowerNukkitX 3.0.2 can emit an otherwise valid MCPE advertisement with
+    # an empty display-version field. RakNet compatibility is determined by
+    # the numeric protocol, so keep that source usable and let the gateway
+    # publish the installed BDS version from state/bds-version.
+    if not fields or fields[0] != "MCPE" or protocol <= 0:
         return None
     return protocol, version
 
@@ -157,7 +161,7 @@ class CompatibilityCache:
             return self._protocol, self._version or "Bedrock"
 
     def _discover(self) -> None:
-        announced: tuple[int, str] | None = None
+        announced: tuple[int, str | None] | None = None
         while not self._stop.is_set():
             found = None
             for port in self._ports:
@@ -168,7 +172,7 @@ class CompatibilityCache:
                 protocol, advertised_version = found
                 with self._lock:
                     self._protocol = protocol
-                    if self._version is None:
+                    if self._version is None and advertised_version:
                         self._version = advertised_version
                 self._persist(protocol)
                 if announced != found:
