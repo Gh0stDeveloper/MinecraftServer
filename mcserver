@@ -24,7 +24,7 @@ Uso: mcserver <comando>
   minigames status|prepare|verify            Estado y validación de minijuegos
   minigames import-bedwars /ruta/Mundo       Importar mapa BedWars legacy
   minigames import-skywars ...               Importar mapa SkyWars legacy + coordenadas
-  network status|verify                      Comprobar IP, DNS y puertos
+  network status|verify|ensure-host          Comprobar IP, DNS, host y puertos
   network use-domain|use-ip                  Cambiar host público de transferencias
   firewall apply|status|check                Gestionar firewall local de Minecraft/web
   auto-update enable|disable|status          Actualización diaria (opcional)
@@ -49,7 +49,16 @@ Mantenimiento normal:
   sudo mcserver update
 HELP
 }
-network_action(){ require_root; action="$1"; for i in "${INSTANCES[@]}"; do systemctl "$action" "bedrock@$i.service"; done; }
+network_action(){
+  require_root; action="$1"
+  if [[ "$action" == stop ]]; then
+    for i in "${INSTANCES[@]}"; do systemctl stop "bedrock@$i.service"; done
+    systemctl stop bedrock-gateway.service
+  else
+    systemctl "$action" bedrock-gateway.service
+    for i in "${INSTANCES[@]}"; do systemctl "$action" "bedrock@$i.service"; done
+  fi
+}
 cmd="${1:-help}"; shift || true
 case "$cmd" in
   install) require_root; exec bash "$BASE/scripts/first-install.sh" "$@";;

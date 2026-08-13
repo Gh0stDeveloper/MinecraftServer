@@ -2,13 +2,20 @@
 set -Eeuo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TMP="$(mktemp -d /tmp/nexora-addon-test.XXXXXX)"
-trap 'sudo rm -rf "$TMP"' EXIT
+if [[ ${EUID:-$(id -u)} -eq 0 ]]; then SUDO=(); else SUDO=(sudo); fi
+trap '"${SUDO[@]}" rm -rf "$TMP"' EXIT
 
-sudo groupadd -f bedrock
-id bedrock >/dev/null 2>&1 || sudo useradd --system --gid bedrock --no-create-home --shell /usr/sbin/nologin bedrock
-sudo mkdir -p "$TMP/instances/lobby/worlds/Lobby"
-sudo cp "$ROOT/instances/lobby/server.properties" "$TMP/instances/lobby/server.properties"
-sudo BEDROCK_ROOT="$TMP" bash "$ROOT/scripts/install-addon.sh" lobby "$ROOT/addons/lobby_bp" >/dev/null
+[[ ${EUID:-$(id -u)} -eq 0 ]] || { echo 'Este test necesita root/sudo.' >&2; exit 1; }
+TEST_PATH="$PATH"
+if ! getent group bedrock >/dev/null 2>&1 || ! id bedrock >/dev/null 2>&1; then
+  mkdir -p "$TMP/bin"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP/bin/chown"
+  chmod +x "$TMP/bin/chown"
+  TEST_PATH="$TMP/bin:$PATH"
+fi
+"${SUDO[@]}" mkdir -p "$TMP/instances/lobby/worlds/Lobby"
+"${SUDO[@]}" cp "$ROOT/instances/lobby/server.properties" "$TMP/instances/lobby/server.properties"
+"${SUDO[@]}" env BEDROCK_ROOT="$TMP" PATH="$TEST_PATH" bash "$ROOT/scripts/install-addon.sh" lobby "$ROOT/addons/lobby_bp" >/dev/null
 
 python3 - "$TMP" <<'PY'
 import json,sys

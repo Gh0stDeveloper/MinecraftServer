@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"; source "$SCRIPT_DIR/lib.sh"; source_config; source_engines; fail=0
-printf '\nDiagnóstico Bedrock Network\n---------------------------\n'
+printf '\nDiagnóstico Nexora Network\n---------------------------\n'
 arch="$(uname -m)"; [[ "$arch" == x86_64 || "$arch" == amd64 ]] && ok "Arquitectura $arch" || { warn "Arquitectura $arch"; fail=$((fail+1)); }
 command -v python3 >/dev/null && ok 'Python 3 disponible' || { warn 'Falta Python 3'; fail=$((fail+1)); }
 command -v ss >/dev/null && ok 'iproute2/ss disponible' || { warn 'Falta ss (iproute2)'; fail=$((fail+1)); }
@@ -34,5 +34,11 @@ fi
 if [[ -f "$INSTANCES_DIR/survival/server.properties" ]]; then assert_survival_safe || fail=$((fail+1)); fi
 if [[ -f "$APP_DIR/scripts/plugin-manager.sh" ]] && ! bash "$APP_DIR/scripts/plugin-manager.sh" doctor; then fail=$((fail+1)); fi
 if [[ -f "$APP_DIR/scripts/minigame-manager.sh" ]]; then bash "$APP_DIR/scripts/minigame-manager.sh" status || true; fi
+if systemctl is-active --quiet bedrock-gateway.service 2>/dev/null; then
+  ok 'Gateway RakNet activo'
+else
+  warn 'Gateway RakNet inactivo. Ejecuta: sudo mcserver bootstrap'
+  fail=$((fail+1))
+fi
 free="$(df -h "$ROOT" 2>/dev/null | awk 'NR==2{print $4}')"; [[ -n "$free" ]] && ok "Espacio libre: $free"
 bash "$APP_DIR/scripts/status.sh"; [[ $fail -eq 0 ]] && ok 'Diagnóstico sin bloqueos.' || die "Se encontraron $fail problema(s)."

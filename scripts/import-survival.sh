@@ -115,7 +115,6 @@ sed -i 's/^allow-cheats=.*/allow-cheats=false/' "$INSTANCE/server.properties"
 sed -i 's/^force-gamemode=.*/force-gamemode=false/' "$INSTANCE/server.properties"
 sed -i 's/^gamemode=.*/gamemode=survival/' "$INSTANCE/server.properties"
 sed -i 's/^online-mode=.*/online-mode=true/' "$INSTANCE/server.properties"
-sed -i 's/^allow-list=.*/allow-list=true/' "$INSTANCE/server.properties"
 sed -i 's/^level-name=.*/level-name=SurvivalWorld/' "$INSTANCE/server.properties"
 if [[ -f "$BASE/config/engines.env" ]]; then
   sed -i 's/^SURVIVAL_ENGINE=.*/SURVIVAL_ENGINE=bds/' "$BASE/config/engines.env"
@@ -131,7 +130,7 @@ PROTECCIÓN DE LOGROS:
 - allow-cheats=false
 - force-gamemode=false
 - online-mode=true
-- allow-list=true
+- la allowlist se conserva como estaba configurada; no afecta a los logros.
 - ningún plugin PNX se instala en Survival.
 
 Destino instalado:

@@ -1,7 +1,7 @@
 [Unit]
 Description=Minecraft Bedrock Network instance (%i)
-After=network-online.target
-Wants=network-online.target
+After=network-online.target bedrock-gateway.service
+Wants=network-online.target bedrock-gateway.service
 
 [Service]
 Type=simple

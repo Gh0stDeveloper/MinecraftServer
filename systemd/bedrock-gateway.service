@@ -1,0 +1,17 @@
+[Unit]
+Description=Nexora RakNet gateway for public BDS entry points
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bedrock
+Group=bedrock
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /opt/bedrock-network/app/scripts/bedrock-gateway.py
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

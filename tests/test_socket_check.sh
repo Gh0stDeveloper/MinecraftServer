@@ -29,4 +29,8 @@ tcp_port_listening 8080
 
 echo "Socket detection regression passed."
 
-sudo bash "$ROOT/tests/test_pnx_managed_config.sh"
+if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
+  bash "$ROOT/tests/test_pnx_managed_config.sh"
+else
+  sudo bash "$ROOT/tests/test_pnx_managed_config.sh"
+fi

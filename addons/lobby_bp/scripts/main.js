@@ -10,6 +10,15 @@ const NPC = Object.freeze({
   skywars: "SkyWars"
 });
 
+function subscribeIfAvailable(signal, label, handler) {
+  if (signal && typeof signal.subscribe === "function") {
+    signal.subscribe(handler);
+    return true;
+  }
+  console.warn(`[Nexora Lobby] Evento no disponible en esta versión estable: ${label}`);
+  return false;
+}
+
 function safeName(name) {
   return `"${String(name).replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`;
 }
@@ -51,7 +60,7 @@ async function showMainMenu(player) {
   if (result.selection === 3) transfer(player, "skywars", NETWORK.skywars);
 }
 
-world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
+subscribeIfAvailable(world.afterEvents.playerSpawn, "afterEvents.playerSpawn", ({ player, initialSpawn }) => {
   if (!initialSpawn) return;
   system.run(() => {
     try {
@@ -66,15 +75,20 @@ world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
   });
 });
 
-world.beforeEvents.playerBreakBlock.subscribe((event) => {
+subscribeIfAvailable(world.beforeEvents.playerBreakBlock, "beforeEvents.playerBreakBlock", (event) => {
   event.cancel = true;
 });
 
-world.beforeEvents.playerPlaceBlock.subscribe((event) => {
+const protectsPlacement = subscribeIfAvailable(world.beforeEvents.playerPlaceBlock, "beforeEvents.playerPlaceBlock", (event) => {
   event.cancel = true;
 });
+if (!protectsPlacement) {
+  subscribeIfAvailable(world.beforeEvents.playerInteractWithBlock, "beforeEvents.playerInteractWithBlock", (event) => {
+    event.cancel = true;
+  });
+}
 
-world.afterEvents.playerInteractWithEntity.subscribe((event) => {
+subscribeIfAvailable(world.afterEvents.playerInteractWithEntity, "afterEvents.playerInteractWithEntity", (event) => {
   const { player, target } = event;
   const name = (target.nameTag ?? "").trim().toLowerCase();
   system.run(() => {
@@ -85,13 +99,13 @@ world.afterEvents.playerInteractWithEntity.subscribe((event) => {
   });
 });
 
-world.afterEvents.itemUse.subscribe((event) => {
+subscribeIfAvailable(world.afterEvents.itemUse, "afterEvents.itemUse", (event) => {
   const item = event.itemStack;
   if (!item || item.typeId !== "minecraft:compass") return;
   system.run(() => showMainMenu(event.source).catch(() => {}));
 });
 
-world.beforeEvents.chatSend.subscribe((event) => {
+subscribeIfAvailable(world.beforeEvents.chatSend, "beforeEvents.chatSend", (event) => {
   const message = event.message.trim().toLowerCase();
   const player = event.sender;
 

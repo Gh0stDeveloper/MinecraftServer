@@ -117,7 +117,7 @@ jobs:
           set -euo pipefail
           while IFS= read -r -d '' source; do node --check "$source"; done < <(find addons web -type f -name '*.js' -print0)
       - name: Validate Python syntax
-        run: python3 -m py_compile scripts/bds-resolver.py web/server.py tests/validate_project.py tests/validate_plugin_catalog.py tests/test_bds_resolver.py tests/test_pnx_source_pin.py
+        run: python3 -m py_compile scripts/bds-resolver.py scripts/bedrock-gateway.py web/server.py tests/validate_project.py tests/validate_plugin_catalog.py tests/test_bds_resolver.py tests/test_bedrock_gateway.py tests/test_pnx_source_pin.py
       - name: Build pinned PowerNukkitX compile runtime
         shell: bash
         run: |
@@ -170,6 +170,13 @@ jobs:
           grep -q 'secure_admin_request' web/server.py
           grep -q 'bedrock-survival-import.path' scripts/lib.sh
           grep -q 'survival-pending-import' scripts/network-manager.sh
+          grep -q 'bedrock-gateway.service' scripts/update-project.sh
+          grep -q 'configure-instances.sh' scripts/bootstrap-runtime.sh
+          grep -q 'network-manager.sh.*ensure-host' scripts/bootstrap-runtime.sh
+          grep -q 'subscribeIfAvailable' addons/lobby_bp/scripts/main.js
+          test -s web/static/assets/nexora-cover.webp
+          test -s web/static/assets/nexora-icon.png
+          test -s addons/lobby_bp/pack_icon.png
           grep -q 'normalize-permissions.sh' scripts/update-project.sh
           grep -q 'exec bash.*update-project.sh' mcserver
           grep -q 'www.duckdns.org' scripts/first-install.sh

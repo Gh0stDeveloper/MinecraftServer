@@ -22,6 +22,8 @@ target/
 build/
 .gradle/
 plugin-build/
+__pycache__/
+*.py[cod]
 
 # Backups and downloaded server packages
 backups/

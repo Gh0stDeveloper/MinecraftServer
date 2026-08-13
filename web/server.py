@@ -55,10 +55,12 @@ def ping_bedrock(port: int, timeout: float = .35) -> dict:
     finally:
         sock.close()
     if len(data) < 35 or data[0] != 0x1C:
-        return {"online": True, "players": None, "max_players": None, "version": None, "motd": None}
+        return {"online": False, "players": 0, "max_players": None, "version": None, "motd": None}
     try:
         n = struct.unpack(">H", data[33:35])[0]
         parts = data[35:35 + n].decode("utf-8", errors="replace").split(";")
+        if not parts or parts[0] != "MCPE" or len(parts) < 6 or not parts[2].isdigit():
+            raise ValueError("invalid MCPE advertisement")
         return {
             "online": True,
             "motd": parts[1] if len(parts) > 1 else None,
@@ -67,7 +69,7 @@ def ping_bedrock(port: int, timeout: float = .35) -> dict:
             "max_players": int(parts[5]) if len(parts) > 5 and parts[5].isdigit() else None,
         }
     except (ValueError, struct.error):
-        return {"online": True, "players": None, "max_players": None, "version": None, "motd": None}
+        return {"online": False, "players": 0, "max_players": None, "version": None, "motd": None}
 
 
 def read_state(name: str):
@@ -83,15 +85,16 @@ def status_payload() -> dict:
     total = 0
     for instance in INSTANCES:
         props = parse_env(BASE / "instances" / instance / "server.properties")
-        port = int(props.get("server-port", env.get(f"{instance.upper()}_PORT", "19132")))
+        port = int(env.get(f"{instance.upper()}_PORT", props.get("server-port", "19132")))
         ping = ping_bedrock(port)
         if isinstance(ping.get("players"), int):
             total += ping["players"]
         engine = engines.get(f"{instance.upper()}_ENGINE", defaults[instance]).lower()
         servers.append({"id": instance, "name": props.get("server-name", instance.title()), "port": port, "engine": engine, **ping})
     return {
-        "network": env.get("SERVER_NAME", "Bedrock Network"),
-        "host": env.get("PUBLIC_HOST", "127.0.0.1"),
+        "network": env.get("SERVER_NAME") or "Nexora Network",
+        "description": env.get("SERVER_DESCRIPTION") or "Survival, PvP, BedWars y SkyWars en una sola aventura",
+        "host": env.get("PUBLIC_HOST") or env.get("PUBLIC_IP") or "127.0.0.1",
         "lobby_port": int(env.get("LOBBY_PORT", "19132")),
         "bds_version": read_state("bds-version"),
         "pnx_version": read_state("pnx-version"),
@@ -147,7 +150,7 @@ def validate_uploaded_archive(path: Path) -> str | None:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "BedrockNetworkWeb/1.3"
+    server_version = "NexoraWeb/2.0"
 
     def log_message(self, fmt, *args):
         print(f"[web] {self.address_string()} {fmt % args}")
@@ -301,7 +304,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
-    print(f"Bedrock Network web escuchando en http://{HOST}:{PORT}")
+    print(f"Nexora Network web escuchando en http://{HOST}:{PORT}")
     httpd.serve_forever()
 
 

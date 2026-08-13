@@ -21,7 +21,7 @@ prop_from_template(){
 }
 
 prepare_pnx(){
-  local instance target template port level motd max_players allow_list
+  local instance target template port level motd label motd_yaml description_yaml motd_sed max_players allow_list
   instance="$1"
   target="$INSTANCES_DIR/$instance"
   template="$APP_DIR/instances/$instance/server.properties"
@@ -31,7 +31,14 @@ prepare_pnx(){
 
   port="$(prop_from_template "$template" server-port)"
   level="$(prop_from_template "$template" level-name)"
-  motd="$(prop_from_template "$template" server-name)"
+  case "$instance" in
+    pvp) label="PvP";;
+    bedwars) label="BedWars";;
+    skywars) label="SkyWars";;
+  esac
+  motd="$SERVER_NAME | $label"
+  motd_yaml="${motd//\\/\\\\}"; motd_yaml="${motd_yaml//\"/\\\"}"
+  description_yaml="${SERVER_DESCRIPTION//\\/\\\\}"; description_yaml="${description_yaml//\"/\\\"}"
   max_players="$(prop_from_template "$template" max-players)"
   allow_list="$(prop_from_template "$template" allow-list)"
   [[ "$port" =~ ^[0-9]+$ && "$port" -ge 1 && "$port" -le 65535 ]] || die "Puerto PNX inválido para $instance: ${port:-vacío}"
@@ -41,6 +48,8 @@ prepare_pnx(){
 
   mkdir -p "$target/plugins" "$target/worlds"
   install -m 0644 "$template" "$target/server.properties"
+  motd_sed="${motd//\\/\\\\}"; motd_sed="${motd_sed//&/\\&}"; motd_sed="${motd_sed//|/\\|}"
+  sed -i "s|^server-name=.*|server-name=$motd_sed|" "$target/server.properties"
 
   # PNX 3 ejecuta una conversión de configuración legacy antes de cargar pnx.yml
   # siempre que encuentre juntos nukkit.yml y server.properties. Las instancias
@@ -60,8 +69,8 @@ settings:
   defaultLevelName: "$level"
   allowList: $allow_list
   allowListMessage: "Servidor en lista blanca"
-  motd: "$motd"
-  sub-motd: "Nexora Bedrock Network"
+  motd: "$motd_yaml"
+  sub-motd: "$description_yaml"
   language: spa
   forceServerTranslate: false
   safeSpawn: true

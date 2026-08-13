@@ -17,5 +17,4 @@ check allow-cheats false
 check force-gamemode false
 check gamemode survival
 check online-mode true
-check allow-list true
 exit "$FAIL"

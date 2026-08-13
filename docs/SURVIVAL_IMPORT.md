@@ -19,7 +19,6 @@ allow-cheats=false
 force-gamemode=false
 gamemode=survival
 online-mode=true
-allow-list=true
 level-name=SurvivalWorld
 ```
 
@@ -32,6 +31,10 @@ level-name=SurvivalWorld
 - No sustituir `level.dat` por uno modificado para intentar recuperar logros.
 
 ## Allowlist
+
+La allowlist es opcional y no cambia el estado de los logros. La plantilla la
+deja en `false` para evitar que un JSON vacío bloquee a todos. Si quieres una
+red privada, añade primero los Gamertags y después usa `allow-list=true`.
 
 Ejemplo de `/opt/bedrock-network/instances/survival/allowlist.json`:
 
