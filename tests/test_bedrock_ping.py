@@ -50,6 +50,15 @@ def main() -> None:
     assert good.returncode == 0, good.stderr
     assert good.stdout.startswith("MCPE;Test Lobby;")
 
+    pnx_without_version = b"MCPE;Nexora Network | PvP;2168;;0;20;123;Nexora;Survival;1;19134;19134;"
+    pnx = run_probe(
+        lambda req: pong_prefix(req)
+        + struct.pack(">H", len(pnx_without_version))
+        + pnx_without_version
+    )
+    assert pnx.returncode == 0, pnx.stderr
+    assert pnx.stdout.startswith("MCPE;Nexora Network | PvP;2168;;")
+
     bare = run_probe(pong_prefix)
     assert bare.returncode != 0
     assert "33 bytes" in bare.stderr
