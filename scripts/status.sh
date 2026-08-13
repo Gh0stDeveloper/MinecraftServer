@@ -5,13 +5,11 @@ printf '\n%-10s %-8s %-10s %-8s\n' INSTANCIA MOTOR ESTADO PUERTO
 printf '%-10s %-8s %-10s %-8s\n' '---------' '-----' '------' '------'
 probe="$APP_DIR/scripts/bedrock-ping.py"; [[ -f "$probe" ]] || probe="$SCRIPT_DIR/bedrock-ping.py"
 for i in "${INSTANCES[@]}"; do
-  upper="${i^^}_PORT"; port="${!upper:-?}"; engine="$(engine_for "$i")"; runtime_port="$port"
-  [[ "$i" == lobby ]] && runtime_port="$LOBBY_BACKEND_PORT"
-  [[ "$i" == survival ]] && runtime_port="$SURVIVAL_BACKEND_PORT"
+  upper="${i^^}_PORT"; port="${!upper:-?}"; engine="$(engine_for "$i")"
   if [[ "$i" == survival && -f "$STATE_DIR/survival-pending-import" ]]; then
     state=PENDIENTE
   elif systemctl is-active --quiet "bedrock@$i.service" 2>/dev/null \
-       && udp_port_listening "$runtime_port" \
+       && udp_port_listening "$port" \
        && python3 "$probe" "$port" >/dev/null 2>&1; then
     state=ONLINE
   elif systemctl is-active --quiet "bedrock@$i.service" 2>/dev/null; then

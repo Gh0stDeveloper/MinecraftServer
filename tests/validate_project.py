@@ -109,6 +109,12 @@ def validate_bds_downloader(): subprocess.run([os.environ.get("PYTHON","python3"
 def validate_pnx_source_pin(): subprocess.run([os.environ.get("PYTHON","python3"),str(ROOT/"tests"/"test_pnx_source_pin.py")],check=True,cwd=ROOT)
 def validate_pnx_jar_validator(): subprocess.run([os.environ.get("PYTHON","python3"),str(ROOT/"tests"/"test_pnx_jar_validator.py")],check=True,cwd=ROOT)
 def validate_runtime_regressions():
+    bootstrap=(ROOT/"scripts"/"bootstrap-runtime.sh").read_text(encoding="utf-8")
+    network=(ROOT/"scripts"/"network-manager.sh").read_text(encoding="utf-8")
+    status=(ROOT/"scripts"/"status.sh").read_text(encoding="utf-8")
+    assert 'udp_port_listening "$runtime_port" && udp_port_listening "$port"' not in bootstrap
+    assert network.index('if bedrock_probe "$instance" "$port"') < network.index('Backend UDP/$backend no aparece en ss')
+    assert 'udp_port_listening "$runtime_port"' not in status
     subprocess.run([os.environ.get("PYTHON","python3"),str(ROOT/"tests"/"test_bedrock_ping.py")],check=True,cwd=ROOT)
     subprocess.run([os.environ.get("PYTHON","python3"),str(ROOT/"tests"/"test_bedrock_gateway.py")],check=True,cwd=ROOT)
     subprocess.run(["bash",str(ROOT/"tests"/"test_configure_instances.sh")],check=True,cwd=ROOT)
