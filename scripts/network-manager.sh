@@ -126,17 +126,15 @@ verify(){
       log "UDP/$port Survival pendiente de importación; es normal que aún no escuche."
       continue
     fi
-    if [[ -n "$backend" ]] && ! udp_port_listening "$backend"; then
-      state="$(service_state "$instance")"
-      warn "Backend UDP/$backend no está escuchando ($instance; servicio=$state)."
-      fail=$((fail+1))
-      continue
-    fi
     if udp_port_listening "$port"; then
       ok "UDP/$port escuchando ($instance)"
       if bedrock_probe "$instance" "$port"; then
         ok "UDP/$port responde con anuncio Bedrock/RakNet completo ($instance)"
       else
+        if [[ -n "$backend" ]] && ! udp_port_listening "$backend"; then
+          state="$(service_state "$instance")"
+          warn "Backend UDP/$backend no aparece en ss ($instance; servicio=$state)."
+        fi
         warn "UDP/$port escucha, pero no respondió correctamente al ping Bedrock/RakNet ($instance)."
         fail=$((fail+1))
       fi

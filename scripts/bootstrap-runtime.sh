@@ -20,8 +20,11 @@ ensure_dependencies(){
 wait_udp(){
   local instance="$1" port="$2" runtime_port="${3:-$2}" tries=0 state probe="$APP_DIR/scripts/bedrock-ping.py"
   while ((tries < 60)); do
-    if udp_port_listening "$runtime_port" && udp_port_listening "$port" \
-       && python3 "$probe" "$port" >/dev/null 2>&1; then
+    # Lobby/Survival only receive a public MCPE pong after the gateway has
+    # queried the corresponding BDS backend and received its RakNet GUID. That
+    # end-to-end response is a stronger health signal than whether `ss` happens
+    # to enumerate the internal BDS socket on this kernel/BDS build.
+    if udp_port_listening "$port" && python3 "$probe" "$port" >/dev/null 2>&1; then
       ok "$instance operativo en UDP/$port (anuncio MCPE completo)"
       return 0
     fi
@@ -32,6 +35,9 @@ wait_udp(){
     fi
     sleep 2; tries=$((tries+1))
   done
+  if [[ "$runtime_port" != "$port" ]] && ! udp_port_listening "$runtime_port"; then
+    warn "Backend UDP/$runtime_port no aparece en ss ($instance; servicio=$state)."
+  fi
   journalctl -u "bedrock@$instance.service" -n 40 --no-pager >&2 || true
   journalctl -u bedrock-gateway.service -n 40 --no-pager >&2 || true
   die "$instance no publicó un anuncio Bedrock completo en UDP/$port dentro del tiempo de validación."
