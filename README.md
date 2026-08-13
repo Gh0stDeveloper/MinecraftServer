@@ -1,5 +1,7 @@
 <div align="center">
 
+![Portada de Nexora Network](web/static/assets/nexora-cover.webp)
+
 # ⛏️ Nexora · Minecraft Bedrock Network
 
 ### Una red Bedrock self-hosted, modular y lista para VPS Ubuntu
@@ -51,7 +53,13 @@ No viene ligado a una IP, dominio o VPS concreta: el instalador detecta la red d
 
 ```text
                                ┌────────────────────┐
-Jugador Bedrock ── UDP/19132 ─►│       LOBBY        │
+Jugador Bedrock ── UDP/19132 ─►│  GATEWAY RAKNET    │
+                               │ anuncio MCPE/proxy │
+                               └─────────┬──────────┘
+                                         │ UDP/20132 local
+                                         ▼
+                               ┌────────────────────┐
+                               │       LOBBY        │
                                │   BDS + Lobby BP   │
                                └─────────┬──────────┘
                                          │
@@ -72,12 +80,22 @@ Internet ── TCP/80,443 ──► Nginx ──► backend web local TCP/8080
 
 | Instancia | Motor | Puerto | Estado esperado tras bootstrap |
 |---|---|---:|---|
-| 🏠 Lobby | BDS | `19132/UDP` | Online |
-| 🌲 Survival | BDS | `19133/UDP` | Detenido hasta importar mundo |
+| 🏠 Lobby | Gateway `19132` → BDS `20132` local | `19132/UDP` | Online |
+| 🌲 Survival | Gateway `19133` → BDS `20133` local | `19133/UDP` | Detenido hasta importar mundo |
 | ⚔️ PvP | PowerNukkitX | `19134/UDP` | Online |
 | 🛏️ BedWars | PowerNukkitX | `19135/UDP` | Online |
 | ☁️ SkyWars | PowerNukkitX | `19136/UDP` | Online |
 | 🌐 Web | Python + Nginx | `8080/TCP` interno | Online |
+
+### Identidad de Nexora
+
+- el anuncio `MCPE` publica nombre, versión, jugadores y descripción;
+- el panel público usa una portada optimizada y el emblema como favicon;
+- el Behavior Pack del Lobby incluye el mismo emblema como `pack_icon.png`.
+
+Bedrock no utiliza el archivo `server-icon.png` de Minecraft Java en la lista de
+servidores personalizados. Por eso la identidad nativa se expresa mediante el
+MOTD/descripción, mientras la portada y el icono aparecen en la web y el pack.
 
 ---
 
@@ -149,6 +167,11 @@ sudo mcserver web domain TU_DOMINIO
 sudo mcserver web https TU_DOMINIO TU_CORREO
 ```
 
+Las transferencias internas del Lobby usan la IPv4 pública de forma
+predeterminada, aunque el panel web tenga dominio. Esto evita depender del DNS
+o la caché del dispositivo. Si prefieres transferencias por dominio, actívalas
+explícitamente con `sudo mcserver network use-domain`.
+
 ---
 
 ## 🎨 Interfaz de terminal
@@ -219,7 +242,7 @@ gamemode=survival
 force-gamemode=false
 allow-cheats=false
 online-mode=true
-allow-list=true
+allow-list=false
 ```
 
 Nexora además garantiza que Survival:
@@ -229,6 +252,10 @@ Nexora además garantiza que Survival:
 - no recibe Behavior Packs de minijuegos;
 - conserva `level.dat` durante la importación;
 - permanece apagado hasta que exista un mundo real importado.
+
+La lista blanca queda desactivada en la plantilla pública para que una instalación
+nueva no bloquee a todos con `allowlist.json` vacío. Si la activas y añades al
+menos un Gamertag, las actualizaciones respetan esa decisión.
 
 ### Importar desde terminal
 

@@ -55,9 +55,10 @@ def main() -> None:
     assert "33 bytes" in bare.stderr
     assert "falta el anuncio Bedrock MCPE" in bare.stderr
 
-    allowed_bare = run_probe(pong_prefix, "--allow-bare")
-    assert allowed_bare.returncode == 0, allowed_bare.stderr
-    assert allowed_bare.stdout.strip() == "RAKNET;bare"
+    invalid_protocol = b"MCPE;Test Lobby;0;1.26.40;0;20;123;Test;Adventure;2;19132;19133;"
+    invalid = run_probe(lambda req: pong_prefix(req) + struct.pack(">H", len(invalid_protocol)) + invalid_protocol)
+    assert invalid.returncode != 0
+    assert "metadatos no utilizables" in invalid.stderr
 
     print("Bedrock RakNet advertisement probe regression passed.")
 

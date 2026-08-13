@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parent.parent
-EXPECTED_PORTS={"lobby":"19132","survival":"19133","pvp":"19134","bedwars":"19135","skywars":"19136"}
+EXPECTED_PORTS={"lobby":"20132","survival":"20133","pvp":"19134","bedwars":"19135","skywars":"19136"}
 NATIVE={"nexora-practice":("0.2.0","3.0.2"),"nexora-bedwars":("0.1.0","3.0.2"),"nexora-skywars":("0.1.0","3.0.2")}
 def props(path:Path)->dict[str,str]:
     out={}
@@ -25,12 +25,15 @@ def validate_instances():
         assert d.get("transport")=="raknet",(instance,d.get("transport"))
         assert d.get("enable-lan-visibility")=="false",(instance,d.get("enable-lan-visibility"))
     s=props(ROOT/"instances"/"survival"/"server.properties")
-    for k,v in {"gamemode":"survival","force-gamemode":"false","allow-cheats":"false","online-mode":"true","allow-list":"true","level-name":"SurvivalWorld"}.items(): assert s.get(k)==v
+    for k,v in {"gamemode":"survival","force-gamemode":"false","allow-cheats":"false","online-mode":"true","allow-list":"false","level-name":"SurvivalWorld"}.items(): assert s.get(k)==v
     assert int(props(ROOT/"instances"/"skywars"/"server.properties").get("max-players","0"))>=16
 def validate_deployment():
     n=env(ROOT/"config"/"network.env")
     assert n.get("PUBLIC_IP","")==""; assert n.get("PUBLIC_DOMAIN","")==""; assert n.get("PUBLIC_HOST","")==""
-    assert n.get("LOBBY_PORT")=="19132" and n.get("WEB_PORT")=="8080"
+    assert n.get("LOBBY_PORT")=="19132" and n.get("SURVIVAL_PORT")=="19133" and n.get("WEB_PORT")=="8080"
+    assert n.get("LOBBY_BACKEND_PORT")=="20132" and n.get("SURVIVAL_BACKEND_PORT")=="20133"
+    assert n.get("TRANSFER_HOST_MODE")=="ip"
+    assert n.get("SERVER_NAME")=="Nexora Network" and n.get("SERVER_DESCRIPTION")
 def validate_public_docs():
     forbidden=("minecraftnexora.duckdns.org","163.192.204.78")
     paths=[ROOT/"README.md",ROOT/"docs"/"README.md",ROOT/"docs"/"WEB_ADMIN.md",ROOT/"docs"/"ORACLE_RECOVERY.md",ROOT/"docs"/"PNX_RUNTIME.md",ROOT/"config"/"network.env"]
@@ -48,6 +51,9 @@ def validate_pnx_managed_config():
     assert '  port: $port' in text
     assert '  defaultLevelName: "$level"' in text
     assert 'config:\n  version: "3.0.0"' in text
+    launch=(ROOT/"scripts"/"launch-instance.sh").read_text(encoding="utf-8")
+    assert 'rm -f "$target/nukkit.yml"' in launch
+    assert 'PowerNukkitX terminó inesperadamente con código 0' in launch
     gameplay=text.split('gameplay-settings:',1)[1].split('config:',1)[0]
     assert 'allowBeta: false' in gameplay
     assert 'enableRedstone: true' in gameplay
@@ -90,7 +96,7 @@ def validate_survival_isolation():
     s=ROOT/"instances"/"survival"
     for p in [s/"behavior_packs",s/"plugins",s/"pnx.yml",s/"world_behavior_packs.json"]: assert not p.exists()
 def validate_required_files():
-    required=["mcserver","scripts/ui.sh","scripts/socket-check.sh","scripts/bedrock-ping.py","scripts/launch-instance.sh","scripts/update-pnx.sh","scripts/pnx-jar-validator.py","scripts/bds-downloader.py","scripts/engine-manager.sh","scripts/plugin-manager.sh","scripts/minigame-manager.sh","scripts/network-manager.sh","scripts/install-addon.sh","scripts/normalize-permissions.sh","scripts/bootstrap-runtime.sh","scripts/firewall-manager.sh","tests/test_bedrock_ping.py","tests/test_pnx_source_pin.py","tests/test_pnx_jar_validator.py","tests/test_socket_check.sh","tests/test_lobby_addon_permissions.sh","docs/README.md","systemd/bedrock@.service","pnx-plugins/nexora-practice/src/main/resources/plugin.yml","pnx-plugins/nexora-bedwars/src/main/resources/plugin.yml","pnx-plugins/nexora-skywars/src/main/resources/plugin.yml"]
+    required=["mcserver","scripts/ui.sh","scripts/socket-check.sh","scripts/bedrock-ping.py","scripts/bedrock-gateway.py","scripts/configure-instances.sh","scripts/launch-instance.sh","scripts/update-pnx.sh","scripts/pnx-jar-validator.py","scripts/bds-downloader.py","scripts/engine-manager.sh","scripts/plugin-manager.sh","scripts/minigame-manager.sh","scripts/network-manager.sh","scripts/install-addon.sh","scripts/normalize-permissions.sh","scripts/bootstrap-runtime.sh","scripts/firewall-manager.sh","tests/test_bedrock_ping.py","tests/test_bedrock_gateway.py","tests/test_configure_instances.sh","tests/test_pnx_launch_guard.sh","tests/test_pnx_source_pin.py","tests/test_pnx_jar_validator.py","tests/test_socket_check.sh","tests/test_lobby_addon_permissions.sh","docs/README.md","systemd/bedrock@.service","systemd/bedrock-gateway.service","pnx-plugins/nexora-practice/src/main/resources/plugin.yml","pnx-plugins/nexora-bedwars/src/main/resources/plugin.yml","pnx-plugins/nexora-skywars/src/main/resources/plugin.yml"]
     for rel in required: assert (ROOT/rel).is_file(),rel
 def validate_empty_service_state():
     with tempfile.TemporaryDirectory() as td:
@@ -104,8 +110,12 @@ def validate_pnx_source_pin(): subprocess.run([os.environ.get("PYTHON","python3"
 def validate_pnx_jar_validator(): subprocess.run([os.environ.get("PYTHON","python3"),str(ROOT/"tests"/"test_pnx_jar_validator.py")],check=True,cwd=ROOT)
 def validate_runtime_regressions():
     subprocess.run([os.environ.get("PYTHON","python3"),str(ROOT/"tests"/"test_bedrock_ping.py")],check=True,cwd=ROOT)
+    subprocess.run([os.environ.get("PYTHON","python3"),str(ROOT/"tests"/"test_bedrock_gateway.py")],check=True,cwd=ROOT)
+    subprocess.run(["bash",str(ROOT/"tests"/"test_configure_instances.sh")],check=True,cwd=ROOT)
     subprocess.run(["bash",str(ROOT/"tests"/"test_socket_check.sh")],check=True,cwd=ROOT)
-    subprocess.run(["sudo","bash",str(ROOT/"tests"/"test_lobby_addon_permissions.sh")],check=True,cwd=ROOT)
+    subprocess.run(["bash",str(ROOT/"tests"/"test_pnx_launch_guard.sh")],check=True,cwd=ROOT)
+    privileged=[] if os.geteuid()==0 else ["sudo"]
+    subprocess.run([*privileged,"bash",str(ROOT/"tests"/"test_lobby_addon_permissions.sh")],check=True,cwd=ROOT)
 def main():
     validate_instances(); validate_deployment(); validate_public_docs(); validate_engines(); validate_pnx_managed_config(); validate_json(); validate_manifests(); validate_plugins(); validate_survival_isolation(); validate_required_files(); validate_empty_service_state(); validate_bds_downloader(); validate_pnx_source_pin(); validate_pnx_jar_validator(); validate_runtime_regressions(); print("All native-minigame BedrockNetwork checks passed.")
 if __name__=="__main__": main()

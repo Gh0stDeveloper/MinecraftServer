@@ -98,12 +98,31 @@ PY
 domain_matches_ip(){
   local domain="$1" expected="$2"
   [[ -n "$domain" && -n "$expected" ]] || return 1
-  getent ahostsv4 "$domain" 2>/dev/null | awk '{print $1}' | grep -Fxq "$expected"
+  local -a addresses=()
+  mapfile -t addresses < <(getent ahostsv4 "$domain" 2>/dev/null | awk '{print $1}' | sort -u)
+  [[ ${#addresses[@]} -eq 1 && "${addresses[0]}" == "$expected" ]] || return 1
+  [[ -z "$(getent ahostsv6 "$domain" 2>/dev/null | awk '{print $1}' | sort -u)" ]]
 }
 set_env(){
   local file="$1" key="$2" value="$3" escaped
   escaped="${value//|/\\|}"
   if grep -q "^${key}=" "$file"; then sed -i "s|^${key}=.*|${key}=\"${escaped}\"|" "$file"; else printf '%s="%s"\n' "$key" "$value" >> "$file"; fi
+}
+
+wait_bedrock_entry(){
+  local instance="$1" port="$2" tries=0 probe="$APP_DIR/scripts/bedrock-ping.py"
+  while (( tries < 60 )); do
+    if python3 "$probe" "$port" >/dev/null 2>&1; then
+      ui_ok "$instance publica un anuncio Bedrock completo en UDP/$port"
+      return 0
+    fi
+    sleep 2
+    tries=$((tries+1))
+  done
+  journalctl -u "bedrock@$instance.service" -n 40 --no-pager >&2 || true
+  journalctl -u bedrock-gateway.service -n 40 --no-pager >&2 || true
+  ui_error "$instance no quedó accesible en UDP/$port. Revisa los logs anteriores."
+  return 1
 }
 
 existing_ip="$(read_env_value "$CONFIG" PUBLIC_IP)"
@@ -134,14 +153,20 @@ DNS_STATE="sin-dominio"
 if [[ -n "$DOMAIN" ]]; then
   if domain_matches_ip "$DOMAIN" "$PUBLIC_IP"; then DNS_STATE="verificado"; else DNS_STATE="pendiente"; fi
 fi
-if [[ -z "$HOST" ]]; then
-  if [[ "$DNS_STATE" == verificado ]]; then HOST="$DOMAIN"; else HOST="$PUBLIC_IP"; fi
-fi
+if [[ -z "$HOST" ]]; then HOST="$PUBLIC_IP"; fi
 [[ -n "$HOST" ]] || { ui_error 'El host público no puede estar vacío.'; exit 1; }
+if [[ -n "$DOMAIN" && "$HOST" == "$DOMAIN" ]]; then
+  TRANSFER_HOST_MODE=domain
+elif [[ "$HOST" == "$PUBLIC_IP" ]]; then
+  TRANSFER_HOST_MODE=ip
+else
+  TRANSFER_HOST_MODE=custom
+fi
 
 set_env "$CONFIG" PUBLIC_IP "$PUBLIC_IP"
 set_env "$CONFIG" PUBLIC_DOMAIN "$DOMAIN"
 set_env "$CONFIG" PUBLIC_HOST "$HOST"
+set_env "$CONFIG" TRANSFER_HOST_MODE "$TRANSFER_HOST_MODE"
 set_env "$CONFIG" WEB_PORT "$WEB_PORT"
 chmod 0640 "$CONFIG" "$ENGINES"; chown root:bedrock "$CONFIG" "$ENGINES"
 
@@ -149,6 +174,7 @@ ui_section "Configuración detectada"
 ui_kv "IPv4 pública" "$PUBLIC_IP"
 ui_kv "Dominio" "${DOMAIN:-no configurado}"
 ui_kv "Host activo" "$HOST"
+ui_kv "Transferencias" "$TRANSFER_HOST_MODE"
 if [[ -n "$DOMAIN" && "$DNS_STATE" == pendiente ]]; then
   ui_warn "$DOMAIN todavía no apunta a $PUBLIC_IP; se usará la IP temporalmente."
   ui_note "Cuando actualices DuckDNS/DNS: sudo mcserver network use-domain"
@@ -174,6 +200,7 @@ source_config
 source_engines
 ui_section "Runtimes y servicios"
 ui_run_task "Instalando unidades systemd" bash -c 'source "$1"; install_units' _ "$APP_DIR/scripts/lib.sh"
+ui_run_task "Configurando gateway y backends BDS" bash "$APP_DIR/scripts/configure-instances.sh"
 ui_run_task "Instalando/actualizando Bedrock Dedicated Server" bash "$APP_DIR/scripts/update-bds.sh" "$BDS_VERSION"
 bash "$APP_DIR/scripts/update-pnx.sh" latest
 ui_run_task "Preparando instancias PowerNukkitX" bash "$APP_DIR/scripts/engine-manager.sh" prepare
@@ -191,9 +218,16 @@ ui_run_task "Actualizando configuración del Lobby" bash "$APP_DIR/scripts/rende
 ui_run_task "Instalando addon del Lobby" bash "$APP_DIR/scripts/install-addon.sh" lobby "$ROOT/addons/lobby_bp"
 ui_run_task "Aplicando firewall local" bash "$APP_DIR/scripts/firewall-manager.sh" apply
 
-systemctl enable --now bedrock-web.service >/dev/null 2>&1
+systemctl enable --now bedrock-web.service bedrock-gateway.service >/dev/null 2>&1
 for instance in lobby pvp bedwars skywars; do systemctl restart "bedrock@$instance.service"; done
 if [[ -f "$ROOT/state/survival-pending-import" ]]; then systemctl stop bedrock@survival.service 2>/dev/null || true; else systemctl restart bedrock@survival.service; fi
+
+ui_section "Validación de entradas Bedrock"
+wait_bedrock_entry lobby "$LOBBY_PORT"
+wait_bedrock_entry pvp "$PVP_PORT"
+wait_bedrock_entry bedwars "$BEDWARS_PORT"
+wait_bedrock_entry skywars "$SKYWARS_PORT"
+if [[ ! -f "$ROOT/state/survival-pending-import" ]]; then wait_bedrock_entry survival "$SURVIVAL_PORT"; fi
 
 if [[ ! -s "$ROOT/config/web-admin.token.sha256" ]]; then
   ui_section "Panel administrativo"
@@ -203,7 +237,7 @@ if [[ -n "$DOMAIN" && "$DNS_STATE" == verificado ]]; then ui_run_task "Configura
 bash "$APP_DIR/scripts/check-survival-safety.sh" "$ROOT/instances/survival/server.properties" >/dev/null
 
 ui_section "Instalación completada"
-ui_ok "Minecraft Bedrock Network está preparado"
+ui_ok "Nexora Network está preparada"
 ui_kv "Minecraft" "$HOST:$LOBBY_PORT"
 ui_kv "BDS" "$(current_bds_version)"
 ui_kv "PowerNukkitX" "$(current_pnx_version)"

@@ -12,7 +12,7 @@ async function refresh() {
     const data = await response.json(); address = `${data.host}:${data.lobby_port}`; $("serverAddress").textContent = address; $("totalPlayers").textContent = data.players ?? "—";
     $("runtimeVersion").textContent = `${data.bds_version || "—"} / ${data.pnx_version || "—"}`;
     const online = data.servers.filter((server) => server.online).length; $("networkState").textContent = `${online}/${data.servers.length}`; $("serverGrid").innerHTML = data.servers.map(serverCard).join("");
-    $("updatedAt").textContent = `Actualizado ${new Date(data.generated_at * 1000).toLocaleTimeString()}`; document.querySelectorAll("[data-network]").forEach((node) => { node.textContent = data.network; }); document.title = data.network;
+    $("updatedAt").textContent = `Actualizado ${new Date(data.generated_at * 1000).toLocaleTimeString()}`; document.querySelectorAll("[data-network]").forEach((node) => { node.textContent = data.network; }); if (data.description) $("serverDescription").textContent = data.description; document.title = data.network;
   } catch { $("networkState").textContent = "ERROR"; $("updatedAt").textContent = "No se pudo obtener el estado de la red."; }
 }
 $("copyAddress").addEventListener("click", async () => { if (!address) return; await navigator.clipboard.writeText(address); const button=$("copyAddress"), old=button.textContent; button.textContent="Copiado"; setTimeout(()=>{button.textContent=old;},1300); });

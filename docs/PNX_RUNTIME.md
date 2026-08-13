@@ -98,6 +98,13 @@ Así se evita recompilar Gradle en cada ejecución mientras el snapshot upstream
 
 ## 🩺 Comandos útiles
 
+### Protección de puertos al arrancar
+
+Cada inicio de PowerNukkitX elimina `nukkit.yml`, valida que `settings.port` en
+`pnx.yml` coincida con el `server-port` administrado y corrige el valor si es
+necesario. Además, una salida inesperada con código `0` se convierte en fallo
+para que systemd la reinicie y no deje la instancia como `inactive (dead)`.
+
 ```bash
 sudo mcserver update pnx
 sudo mcserver bootstrap

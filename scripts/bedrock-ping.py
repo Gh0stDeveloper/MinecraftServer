@@ -17,12 +17,8 @@ def fail(message: str) -> int:
 
 def main() -> int:
     args = list(sys.argv[1:])
-    allow_bare = False
-    if "--allow-bare" in args:
-        args.remove("--allow-bare")
-        allow_bare = True
     if len(args) not in {1, 2}:
-        return fail(f"Uso: {sys.argv[0]} PUERTO [HOST] [--allow-bare]")
+        return fail(f"Uso: {sys.argv[0]} PUERTO [HOST]")
     try:
         port = int(args[0])
     except ValueError:
@@ -46,13 +42,6 @@ def main() -> int:
     if not data or data[0] != 0x1C:
         return fail(f"UDP/{port} respondió, pero no con Unconnected Pong RakNet (0x1c).")
 
-    # Con enable-lan-visibility=false, BDS puede contestar al ping dirigido con
-    # el encabezado RakNet de 33 bytes y omitir deliberadamente la cadena MCPE.
-    # Ese estado demuestra que el transporte RakNet está vivo; solo se acepta
-    # cuando el llamador lo solicita explícitamente para una instancia BDS.
-    if len(data) == 33 and allow_bare:
-        print("RAKNET;bare")
-        return 0
     if len(data) < 35:
         return fail(
             f"UDP/{port} devolvió un pong RakNet incompleto de {len(data)} bytes; "
@@ -69,6 +58,16 @@ def main() -> int:
     advertisement = data[35 : 35 + advertised_len].decode("utf-8", errors="replace")
     if not advertisement.startswith("MCPE;"):
         return fail(f"UDP/{port} respondió, pero el anuncio no comienza con MCPE;: {advertisement!r}")
+
+    fields = advertisement.split(";")
+    try:
+        protocol = int(fields[2])
+        players = int(fields[4])
+        max_players = int(fields[5])
+    except (IndexError, ValueError):
+        return fail(f"UDP/{port} anunció MCPE, pero sus campos obligatorios son inválidos: {advertisement!r}")
+    if protocol <= 0 or not fields[1].strip() or not fields[3].strip() or players < 0 or max_players <= 0:
+        return fail(f"UDP/{port} anunció MCPE con metadatos no utilizables: {advertisement!r}")
 
     print(advertisement)
     return 0

@@ -31,7 +31,7 @@ else
   ui_error(){ printf '[X] %s\n' "$*" >&2; }
   ui_note(){ printf '    %s\n' "$*"; }
   ui_section(){ printf '\n== %s ==\n' "$*"; }
-  ui_banner(){ printf '\nMinecraft Bedrock Network - %s\n\n' "${1:-}"; }
+  ui_banner(){ printf '\nNexora Bedrock Network - %s\n\n' "${1:-}"; }
   ui_kv(){ printf '  %-16s %s\n' "$1" "$2"; }
   ui_run_task(){ local label="$1"; shift; ui_step "$label"; "$@"; }
 fi
@@ -46,15 +46,21 @@ source_config(){
   [[ -f "$defaults" ]] || defaults="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/config/network.env"
   [[ -f "$defaults" ]] && source "$defaults"
   [[ -f "$CONFIG_FILE" ]] && source "$CONFIG_FILE"
-  SERVER_NAME="${SERVER_NAME:-Bedrock Network}"
+  SERVER_NAME="${SERVER_NAME:-Nexora Network}"
+  SERVER_DESCRIPTION="${SERVER_DESCRIPTION:-Survival, PvP, BedWars y SkyWars en una sola aventura}"
   PUBLIC_IP="${PUBLIC_IP:-}"
   PUBLIC_DOMAIN="${PUBLIC_DOMAIN:-}"
   PUBLIC_HOST="${PUBLIC_HOST:-${PUBLIC_IP:-127.0.0.1}}"
+  TRANSFER_HOST_MODE="${TRANSFER_HOST_MODE:-ip}"
   LOBBY_PORT="${LOBBY_PORT:-19132}"
   SURVIVAL_PORT="${SURVIVAL_PORT:-19133}"
   PVP_PORT="${PVP_PORT:-19134}"
   BEDWARS_PORT="${BEDWARS_PORT:-19135}"
   SKYWARS_PORT="${SKYWARS_PORT:-19136}"
+  LOBBY_BACKEND_PORT="${LOBBY_BACKEND_PORT:-20132}"
+  SURVIVAL_BACKEND_PORT="${SURVIVAL_BACKEND_PORT:-20133}"
+  LOBBY_BACKEND_PORTV6="${LOBBY_BACKEND_PORTV6:-20152}"
+  SURVIVAL_BACKEND_PORTV6="${SURVIVAL_BACKEND_PORTV6:-20153}"
   WEB_PORT="${WEB_PORT:-8080}"
   WEB_MAX_UPLOAD_MB="${WEB_MAX_UPLOAD_MB:-4096}"
 }
@@ -92,8 +98,8 @@ validate_engine_layout(){ [[ "$(engine_for lobby)" == bds ]] || die "Lobby debe 
 lock_manager(){ mkdir -p /run/lock; exec 9>/run/lock/bedrock-network.lock; flock -n 9 || die "Ya existe otra operación administrativa en ejecución."; }
 current_bds_version(){ [[ -f "$STATE_DIR/bds-version" ]] && { cat "$STATE_DIR/bds-version"; return; }; [[ -L "$CURRENT_LINK" ]] && { basename "$(readlink -f "$CURRENT_LINK")"; return; }; printf 'none'; }
 current_pnx_version(){ [[ -f "$STATE_DIR/pnx-version" ]] && { cat "$STATE_DIR/pnx-version"; return; }; [[ -L "$PNX_CURRENT_LINK" ]] && { basename "$(readlink -f "$PNX_CURRENT_LINK")"; return; }; printf 'none'; }
-stop_network(){ local i; for i in "${INSTANCES[@]}"; do systemctl stop "bedrock@$i.service" 2>/dev/null || true; done; }
-start_network(){ local i; for i in "${INSTANCES[@]}"; do systemctl start "bedrock@$i.service"; done; }
+stop_network(){ local i; for i in "${INSTANCES[@]}"; do systemctl stop "bedrock@$i.service" 2>/dev/null || true; done; systemctl stop bedrock-gateway.service 2>/dev/null || true; }
+start_network(){ local i; systemctl start bedrock-gateway.service; for i in "${INSTANCES[@]}"; do systemctl start "bedrock@$i.service"; done; }
 restart_network(){ stop_network; start_network; }
 active_instances(){
   local i
@@ -106,6 +112,7 @@ active_instances(){
 }
 start_instance_list(){
   local list="$1" i
+  [[ -z "$list" ]] || systemctl start bedrock-gateway.service
   while IFS= read -r i; do
     [[ -n "$i" ]] || continue
     systemctl start "bedrock@$i.service"
@@ -133,6 +140,7 @@ services_healthy(){ local i failed=0; sleep 2; for i in "${INSTANCES[@]}"; do sy
 assert_survival_safe(){ "$APP_DIR/scripts/check-survival-safety.sh" "$INSTANCES_DIR/survival/server.properties"; }
 install_units(){
   cp "$APP_DIR/systemd/bedrock@.service" /etc/systemd/system/
+  cp "$APP_DIR/systemd/bedrock-gateway.service" /etc/systemd/system/
   cp "$APP_DIR/systemd/bedrock-backup-survival.service" /etc/systemd/system/
   cp "$APP_DIR/systemd/bedrock-backup-survival.timer" /etc/systemd/system/
   cp "$APP_DIR/systemd/bedrock-web.service" /etc/systemd/system/
@@ -146,6 +154,7 @@ install_units(){
   systemctl daemon-reload
   local i
   for i in "${INSTANCES[@]}"; do systemctl enable "bedrock@$i.service" >/dev/null 2>&1; done
+  systemctl enable bedrock-gateway.service >/dev/null 2>&1
   systemctl enable bedrock-backup-survival.timer bedrock-web.service bedrock-survival-import.path >/dev/null 2>&1
   systemctl start bedrock-survival-import.path >/dev/null 2>&1 || true
 }

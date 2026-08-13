@@ -17,38 +17,24 @@ ensure_dependencies(){
   fi
 }
 
-set_server_property(){
-  local file="$1" key="$2" value="$3"
-  [[ -f "$file" ]] || return 0
-  if grep -q "^${key}=" "$file"; then
-    sed -i "s|^${key}=.*|${key}=${value}|" "$file"
-  else
-    printf '\n%s=%s\n' "$key" "$value" >> "$file"
-  fi
-}
-
-ensure_bds_raknet(){
-  local instance file
-  for instance in lobby survival; do
-    file="$INSTANCES_DIR/$instance/server.properties"
-    [[ -f "$file" ]] || continue
-    set_server_property "$file" transport raknet
-    # La visibilidad LAN queda desactivada porque hay más de un BDS en la misma VPS.
-    # En BDS recientes el transporte se fuerza por separado con transport=raknet.
-    set_server_property "$file" enable-lan-visibility false
-  done
-}
-
 wait_udp(){
-  local instance="$1" port="$2" tries=0 state
-  while ((tries < 45)); do
-    if udp_port_listening "$port"; then ok "$instance escuchando en UDP/$port"; return 0; fi
+  local instance="$1" port="$2" runtime_port="${3:-$2}" tries=0 state probe="$APP_DIR/scripts/bedrock-ping.py"
+  while ((tries < 60)); do
+    if udp_port_listening "$runtime_port" && udp_port_listening "$port" \
+       && python3 "$probe" "$port" >/dev/null 2>&1; then
+      ok "$instance operativo en UDP/$port (anuncio MCPE completo)"
+      return 0
+    fi
     state="$(systemctl is-active "bedrock@$instance.service" 2>/dev/null || true)"
-    if [[ "$state" == failed ]]; then journalctl -u "bedrock@$instance.service" -n 40 --no-pager >&2 || true; die "$instance falló durante el arranque."; fi
+    if [[ "$state" == failed || ( "$state" == inactive && $tries -ge 3 ) ]]; then
+      journalctl -u "bedrock@$instance.service" -n 40 --no-pager >&2 || true
+      die "$instance dejó de ejecutarse durante el arranque (estado=$state)."
+    fi
     sleep 2; tries=$((tries+1))
   done
   journalctl -u "bedrock@$instance.service" -n 40 --no-pager >&2 || true
-  die "$instance no abrió UDP/$port dentro del tiempo de validación."
+  journalctl -u bedrock-gateway.service -n 40 --no-pager >&2 || true
+  die "$instance no publicó un anuncio Bedrock completo en UDP/$port dentro del tiempo de validación."
 }
 
 prepare_lobby_world(){
@@ -69,7 +55,8 @@ prepare_lobby_world(){
 }
 
 start_runtime_services(){
-  systemctl enable --now bedrock-web.service >/dev/null 2>&1
+  systemctl enable --now bedrock-web.service bedrock-gateway.service >/dev/null 2>&1
+  systemctl restart bedrock-gateway.service
   local instance
   for instance in lobby pvp bedwars skywars; do systemctl restart "bedrock@$instance.service"; done
   if [[ -f "$STATE_DIR/survival-pending-import" ]]; then systemctl stop bedrock@survival.service 2>/dev/null || true; else systemctl restart bedrock@survival.service; fi
@@ -80,11 +67,13 @@ ui_section "Base del sistema"
 ui_run_task "Verificando dependencias" ensure_dependencies
 ui_run_task "Normalizando permisos" bash "$APP_DIR/scripts/normalize-permissions.sh"
 ui_run_task "Instalando unidades systemd" bash -c 'source "$1"; install_units' _ "$APP_DIR/scripts/lib.sh"
+ui_run_task "Deteniendo servicios para migrar puertos sin colisiones" stop_network
 ui_run_task "Aplicando firewall local" bash "$APP_DIR/scripts/firewall-manager.sh" apply
 
 ui_section "Runtimes"
 bash "$APP_DIR/scripts/update-bds.sh" latest
-ui_run_task "Forzando transporte RakNet en BDS" ensure_bds_raknet
+ui_run_task "Configurando gateway y backends BDS" bash "$APP_DIR/scripts/configure-instances.sh"
+ui_run_task "Validando host de transferencias" bash "$APP_DIR/scripts/network-manager.sh" ensure-host
 bash "$APP_DIR/scripts/update-pnx.sh" latest
 ui_run_task "Preparando instancias PowerNukkitX" bash "$APP_DIR/scripts/engine-manager.sh" prepare
 
@@ -93,14 +82,16 @@ prepare_lobby_world
 ui_run_task "Sincronizando plugins Nexora" bash "$APP_DIR/scripts/plugin-manager.sh" sync
 ui_run_task "Preparando PvP, BedWars y SkyWars" bash "$APP_DIR/scripts/minigame-manager.sh" prepare
 ui_run_task "Renderizando configuración del Lobby" bash "$APP_DIR/scripts/render-lobby-config.sh"
+ui_run_task "Desplegando configuración actualizada del Lobby" bash "$APP_DIR/scripts/install-addon.sh" lobby "$ROOT/addons/lobby_bp"
 
 ui_section "Arranque"
 ui_run_task "Iniciando Lobby, minijuegos y web" start_runtime_services
 if [[ -f "$STATE_DIR/survival-pending-import" ]]; then ui_note "Survival permanece detenido hasta importar el mundo desde el panel web o mcserver import-survival."; fi
-wait_udp lobby "$LOBBY_PORT"
+wait_udp lobby "$LOBBY_PORT" "$LOBBY_BACKEND_PORT"
 wait_udp pvp "$PVP_PORT"
 wait_udp bedwars "$BEDWARS_PORT"
 wait_udp skywars "$SKYWARS_PORT"
+if [[ ! -f "$STATE_DIR/survival-pending-import" ]]; then wait_udp survival "$SURVIVAL_PORT" "$SURVIVAL_BACKEND_PORT"; fi
 
 ui_section "Validación final"
 ui_run_task "Validando plugins" bash "$APP_DIR/scripts/plugin-manager.sh" doctor

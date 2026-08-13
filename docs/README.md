@@ -28,9 +28,9 @@
 ```text
 Jugador Bedrock
       │
-      └── UDP/19132 ──► Lobby · BDS oficial
+      └── UDP/19132 ──► Gateway RakNet ──► Lobby · BDS local :20132
                            │
-                           ├── UDP/19133 ──► Survival · BDS vanilla
+                           ├── UDP/19133 ──► Survival · BDS local :20133
                            ├── UDP/19134 ──► PvP · PowerNukkitX
                            ├── UDP/19135 ──► BedWars · PowerNukkitX
                            └── UDP/19136 ──► SkyWars · PowerNukkitX

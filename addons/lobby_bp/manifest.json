@@ -1,17 +1,17 @@
 {
   "format_version": 2,
   "header": {
-    "name": "Bedrock Network - Lobby",
-    "description": "Lobby, NPC routing and server selector.",
+    "name": "Nexora Network - Lobby",
+    "description": "Lobby Nexora, rutas NPC y selector de servidores.",
     "uuid": "f74dd021-40ac-4f37-a5aa-3a78f12520ff",
-    "version": [0,2,0],
+    "version": [0,2,1],
     "min_engine_version": [1,26,40]
   },
   "modules": [{
     "type": "script",
     "language": "javascript",
     "uuid": "7cba643d-0a55-4f76-9046-c17097b1b2c9",
-    "version": [0,2,0],
+    "version": [0,2,1],
     "entry": "scripts/main.js"
   }],
   "dependencies": [
