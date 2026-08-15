@@ -1,0 +1,35 @@
+name: Bedrock Gateway CI
+
+on:
+  push:
+    branches: [main, "agent/**", "fix/**"]
+    paths:
+      - "scripts/bedrock-gateway.py"
+      - "scripts/bedrock-ping.py"
+      - "tests/test_bedrock_gateway.py"
+      - ".github/workflows/gateway-ci.yml"
+  pull_request:
+    paths:
+      - "scripts/bedrock-gateway.py"
+      - "scripts/bedrock-ping.py"
+      - "tests/test_bedrock_gateway.py"
+      - ".github/workflows/gateway-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  raknet-gateway:
+    name: Validate full RakNet gateway regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate Python syntax
+        run: python3 -m py_compile scripts/bedrock-gateway.py scripts/bedrock-ping.py tests/test_bedrock_gateway.py
+      - name: Test advertisement, Request2 and connected forwarding
+        run: python3 tests/test_bedrock_gateway.py
