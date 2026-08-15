@@ -9,6 +9,8 @@ RakNet handshake if the directed ping only contains the 33-byte header.
 This gateway owns the public Lobby/Survival ports, asks the corresponding BDS
 backend for its real RakNet GUID, adds a complete MCPE advertisement, and
 proxies every connected RakNet datagram through an isolated backend socket.
+It also normalizes the client address that RakNet exposes in the pre-connection
+reply/accept packets so the public endpoint remains coherent across the proxy.
 No third-party Python packages are required.
 """
 
@@ -30,8 +32,16 @@ from pathlib import Path
 MAGIC = bytes.fromhex("00ffff00fefefefefdfdfdfd12345678")
 PING_IDS = {0x01, 0x02}
 OPEN_CONNECTION_REQUEST_1 = 0x05
+OPEN_CONNECTION_REQUEST_2 = 0x07
+OPEN_CONNECTION_REPLY_2 = 0x08
+CONNECTION_REQUEST_ACCEPTED = 0x10
 CLIENT_GUID = 0x4E45584F52414244
 BASE = Path(os.environ.get("BEDROCK_ROOT", "/opt/bedrock-network"))
+
+# RakNet encapsulated-packet metadata. These sets follow PacketReliability.
+RELIABILITY_HAS_MESSAGE_INDEX = {2, 3, 4, 6, 7}
+RELIABILITY_HAS_SEQUENCE_INDEX = {1, 4}
+RELIABILITY_HAS_ORDER_INDEX = {1, 3, 4, 7}
 
 
 def log(message: str) -> None:
@@ -93,13 +103,93 @@ def query_mcpe(port: int, timeout: float = 0.25) -> tuple[int, str | None] | Non
         version = fields[3].strip() or None
     except (IndexError, ValueError, struct.error):
         return None
-    # PowerNukkitX 3.0.2 can emit an otherwise valid MCPE advertisement with
-    # an empty display-version field. RakNet compatibility is determined by
-    # the numeric protocol, so keep that source usable and let the gateway
-    # publish the installed BDS version from state/bds-version.
     if not fields or fields[0] != "MCPE" or protocol <= 0:
         return None
     return protocol, version
+
+
+def encode_ipv4_address(address: tuple[str, int]) -> bytes | None:
+    """Encode a RakNet IPv4 SystemAddress (version + one's-complement IP + port)."""
+    host, port = address
+    try:
+        packed = socket.inet_aton(host)
+    except OSError:
+        return None
+    return b"\x04" + bytes((~octet) & 0xFF for octet in packed) + struct.pack(">H", port)
+
+
+def rewrite_open_connection_reply_2(data: bytes, client: tuple[str, int]) -> bytes:
+    """Replace BDS' view of the proxy socket with the real public client address."""
+    if len(data) < 35 or data[0] != OPEN_CONNECTION_REPLY_2 or data[1:17] != MAGIC:
+        return data
+    if data[25] != 4:
+        return data
+    encoded = encode_ipv4_address(client)
+    if encoded is None:
+        return data
+    rewritten = bytearray(data)
+    rewritten[25:32] = encoded
+    return bytes(rewritten)
+
+
+def _data_datagram(data: bytes) -> bool:
+    # Connected RakNet datagrams have the 100xxxxx flag family. ACK/NACK use 11xxxxxx.
+    return len(data) >= 4 and (data[0] & 0xE0) == 0x80
+
+
+def _encapsulated_payload_ranges(data: bytes):
+    """Yield complete non-split encapsulated payload ranges from a RakNet datagram."""
+    if not _data_datagram(data):
+        return
+    offset = 4
+    size = len(data)
+    while offset < size:
+        if offset + 3 > size:
+            return
+        flags = data[offset]
+        reliability = (flags >> 5) & 0x07
+        split = bool(flags & 0x10)
+        bit_length = struct.unpack(">H", data[offset + 1 : offset + 3])[0]
+        offset += 3
+
+        if reliability in RELIABILITY_HAS_MESSAGE_INDEX:
+            offset += 3
+        if reliability in RELIABILITY_HAS_SEQUENCE_INDEX:
+            offset += 3
+        if reliability in RELIABILITY_HAS_ORDER_INDEX:
+            offset += 4
+        if split:
+            offset += 10
+        if offset > size:
+            return
+
+        payload_bytes = (bit_length + 7) // 8
+        end = offset + payload_bytes
+        if end > size:
+            return
+        if not split:
+            yield offset, end
+        offset = end
+
+
+def rewrite_connection_request_accepted(data: bytes, client: tuple[str, int]) -> tuple[bytes, bool]:
+    """Normalize ID_CONNECTION_REQUEST_ACCEPTED's public client address.
+
+    Packet size and RakNet indices are left unchanged. Malformed, encrypted or
+    split packets are returned byte-for-byte.
+    """
+    encoded = encode_ipv4_address(client)
+    if encoded is None:
+        return data, False
+    for start, end in _encapsulated_payload_ranges(data) or ():
+        if end - start < 8 or data[start] != CONNECTION_REQUEST_ACCEPTED:
+            continue
+        if data[start + 1] != 4:
+            continue
+        rewritten = bytearray(data)
+        rewritten[start + 1 : start + 8] = encoded
+        return bytes(rewritten), True
+    return data, False
 
 
 class CompatibilityCache:
@@ -211,6 +301,12 @@ class Session:
     sock: socket.socket
     client: tuple[str, int]
     last_seen: float
+    backend_local: tuple[str, int]
+    seen_request2: bool = False
+    seen_reply2: bool = False
+    seen_client_connected: bool = False
+    seen_backend_connected: bool = False
+    accepted_rewritten: bool = False
 
 
 class Endpoint:
@@ -320,7 +416,29 @@ class Endpoint:
                 if not data:
                     break
                 session.last_seen = time.monotonic()
-                self.public.sendto(data, session.client)
+
+                outgoing = data
+                if data[0] == OPEN_CONNECTION_REPLY_2:
+                    outgoing = rewrite_open_connection_reply_2(outgoing, session.client)
+                    if not session.seen_reply2:
+                        session.seen_reply2 = True
+                        log(
+                            f"{self.ident}: Reply2 RakNet para {session.client[0]}:{session.client[1]} "
+                            "normalizado al endpoint público del cliente"
+                        )
+                elif _data_datagram(data):
+                    outgoing, rewritten = rewrite_connection_request_accepted(outgoing, session.client)
+                    if rewritten:
+                        session.accepted_rewritten = True
+                    if not session.seen_backend_connected:
+                        session.seen_backend_connected = True
+                        suffix = "; ConnectionRequestAccepted normalizado" if rewritten else ""
+                        log(
+                            f"{self.ident}: primer datagrama RakNet conectado desde BDS para "
+                            f"{session.client[0]}:{session.client[1]}{suffix}"
+                        )
+
+                self.public.sendto(outgoing, session.client)
         except BlockingIOError:
             return
         except OSError:
@@ -383,9 +501,22 @@ class Endpoint:
             backend.bind(("127.0.0.1", 0))
             backend.connect(("127.0.0.1", self.backend_port))
             backend.setblocking(False)
-            session = Session(backend, client, time.monotonic())
+            backend_local = backend.getsockname()
+            session = Session(backend, client, time.monotonic(), backend_local)
             self.sessions[client] = session
             self.selector.register(backend, selectors.EVENT_READ, ("session", self, session))
+            log(
+                f"{self.ident}: nueva sesión RakNet {client[0]}:{client[1]} -> "
+                f"127.0.0.1:{self.backend_port} vía {backend_local[0]}:{backend_local[1]}"
+            )
+
+        if data[0] == OPEN_CONNECTION_REQUEST_2 and not session.seen_request2:
+            session.seen_request2 = True
+            log(f"{self.ident}: Request2 RakNet recibido de {client[0]}:{client[1]}")
+        elif _data_datagram(data) and not session.seen_client_connected:
+            session.seen_client_connected = True
+            log(f"{self.ident}: primer datagrama RakNet conectado de {client[0]}:{client[1]}")
+
         session.last_seen = time.monotonic()
         try:
             session.sock.send(data)
